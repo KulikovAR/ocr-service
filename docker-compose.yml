@@ -6,9 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: app
-    working_dir: /var/www/html
+    working_dir: /var/www
     volumes:
-      - ./:/var/www/html
+      - ./:/var/www
     depends_on:
       - db
     environment:
@@ -16,7 +16,6 @@ services:
       - DB_DATABASE=laravel
       - DB_USERNAME=root
       - DB_PASSWORD=secret
-    # Можно добавить composer install, npm install и т.д. через entrypoint/cmd
 
   db:
     image: mysql:8.0
@@ -44,4 +43,4 @@ services:
       - app
 
 volumes:
-  dbdata: 
+  dbdata:
