@@ -1,61 +1,321 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Микросервис распознавания документов
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Микросервис для распознавания документов с использованием внешнего OCR-сервиса beorg.ru. Поддерживает распознавание паспорта РФ, СНИЛС, водительского удостоверения и свидетельства о регистрации транспортного средства.
 
-## About Laravel
+## Технологический стек
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **PHP 8.3+**
+- **Laravel 12**
+- **MySQL 8.0**
+- **Nginx**
+- **Docker & Docker Compose**
+- **Redis** (для очередей)
+- **Graylog** (для логирования)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Быстрый старт
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. Клонирование репозитория
 
-## Learning Laravel
+```bash
+git clone <repository-url>
+cd osr-service
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 2. Настройка окружения
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+cp .env.example .env
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Отредактируйте `.env` файл:
 
-## Laravel Sponsors
+```env
+# Основные настройки
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Внешний API (bescan)
+BESCAN_BASE_URL=https://api.bescan.ru
+BESCAN_TOKEN=your_token
+BESCAN_MACHINE_UID=your_machine_uid
+BESCAN_PROJECT_ID=DEMO
 
-### Premium Partners
+# Graylog
+GRAYLOG_HOST=graylog
+GRAYLOG_PORT=12201
+GRAYLOG_SOURCE=ocr-service
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Логирование
+LOG_CHANNEL=production
+```
 
-## Contributing
+### 3. Запуск сервисов
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+docker-compose up -d
+```
 
-## Code of Conduct
+### 4. Установка зависимостей и миграции
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+docker-compose exec app composer install --no-dev --optimize-autoloader
 
-## Security Vulnerabilities
+docker-compose exec app php artisan key:generate
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Запуск миграций
+docker-compose exec app php artisan migrate
 
-## License
+# Очистка кэша
+docker-compose exec app php artisan config:clear
+docker-compose exec app php artisan route:clear
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 5. Проверка работоспособности
+
+```bash
+# Health check
+curl http://localhost/health
+
+# Должен вернуть:
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00.000000Z",
+  "checks": {
+    "database": {"status": "healthy", "message": "Database connection successful"},
+    "external_api": {"status": "healthy", "message": "External API is accessible"},
+    "queue": {"status": "healthy", "message": "Queue system is configured"}
+  },
+  "error_flag": false
+}
+```
+
+## API Спецификация
+
+### POST /process_document
+
+Отправляет документ на распознавание.
+
+**Входные данные:**
+```json
+{
+  "id": "string",           // ID документа
+  "doc_type": "string",     // Тип документа: PASSPORT, PASSPORT_REG, SNILS, DLIC, STS
+  "files": ["string"],      // Массив base64 файлов
+  "callback": "string"      // URL для callback (опционально)
+}
+```
+
+**Выходные данные:**
+```json
+{
+  "document_id": "string"   // Идентификатор задачи
+}
+```
+
+**Пример запроса:**
+```bash
+curl -X POST http://localhost/process_document \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "doc_123",
+    "doc_type": "PASSPORT",
+    "files": ["base64_encoded_file_content"],
+    "callback": "https://your-service.com/webhook"
+  }'
+```
+
+### GET /status/{document_id}
+
+Получает статус обработки документа.
+
+**Выходные данные:**
+```json
+{
+  "document_id": "string",
+  "status": "string",       // pending, processing, completed, failed
+  "document_type": "string",
+  "data": {},              // Результат распознавания (если completed)
+  "confidences": {},       // Точность распознавания полей
+  "verifications": {}      // Результаты проверок
+}
+```
+
+**Пример запроса:**
+```bash
+curl http://localhost/status/doc_123
+```
+
+### GET /analytics
+
+Административный раздел для мониторинга (требует OAuth 2.0 авторизации).
+
+**Доступные endpoints:**
+- `GET /analytics` - Общая статистика
+- `GET /analytics/requests` - Список запросов с фильтрами
+- `GET /analytics/performance` - Статистика производительности
+
+## Поддерживаемые форматы документов
+
+### Входные данные
+- **Форматы:** JPEG, TIFF, PNG, AVIF, WEBP, PDF
+- **Размер:** 10 Кб - 5 Мб на файл
+- **Количество страниц:** до 20
+- **Размеры изображения:** 1000x1000 - 5000x5000 пикселей
+
+### Типы документов
+
+#### Паспорт РФ
+```json
+{
+  "issuedBy": "string",
+  "issueDate": "string",
+  "issueId": "string",
+  "series": "string",
+  "number": "string",
+  "gender": "string",
+  "lastName": "string",
+  "firstName": "string",
+  "middleName": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "hasPhoto": "boolean",
+  "hasOwnerSignature": "boolean",
+  "MRZ1": "string",
+  "MRZ2": "string"
+}
+```
+
+#### СНИЛС
+```json
+{
+  "number": "string",
+  "gender": "string",
+  "lastname": "string",
+  "firstname": "string",
+  "middlename": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "registrationDate": "string"
+}
+```
+
+#### Водительское удостоверение
+```json
+{
+  "gender": "string",
+  "lastName": "string",
+  "firstName": "string",
+  "middleName": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "issueDate": "string",
+  "endDate": "string",
+  "issuedBy": "string",
+  "placeOfResidence": "string",
+  "series": "string",
+  "number": "string",
+  "categories": "string",
+  "specialMarks": "string"
+}
+```
+
+#### СРТС
+```json
+{
+  "reg_number": "string",
+  "vin": "string",
+  "brand_rus": "string",
+  "model_rus": "string",
+  "brand_eng": "string",
+  "model_eng": "string",
+  "vehicle_type": "string",
+  "vehicle_category": "string",
+  "release_year": "string",
+  "engine_model": "string",
+  "engine_number": "string",
+  "vehicle_chassis": "string",
+  "vehicle_body": "string",
+  "color": "string",
+  "engine_power": "string",
+  "engine_volume": "string",
+  "ecologic_class": "string",
+  "passport_series": "string",
+  "passport_number": "string",
+  "max_mass": "string",
+  "mass": "string",
+  "lastnameRu": "string",
+  "firstnameRu": "string",
+  "middlenameRu": "string",
+  "federationSubject": "string",
+  "area": "string",
+  "locality": "string",
+  "street": "string",
+  "houseNumber": "string",
+  "buildingNumber": "string",
+  "apartmentNumber": "string",
+  "specialMarks": "string",
+  "departmentCode": "string",
+  "date": "string"
+}
+```
+
+## Мониторинг и логирование
+
+### Graylog интеграция
+
+Все запросы и ответы логируются в Graylog с параметром `source`:
+- Продакшн: `ocr-service`
+- Тестовая среда: `test-ocr-service`
+
+### Health Check
+
+```bash
+curl http://localhost/health
+```
+
+Флаг ошибки устанавливается при:
+- Статусах 401, 402 от внешнего API
+- 5+ последовательных ошибок
+- Проблемах с БД или внутренними ошибками
+
+### Аналитика
+
+Данные мониторинга сохраняются на 3 месяца и включают:
+- Идентификатор запроса
+- Время запроса
+- Статус-код ответа
+- Тип документа
+- Точность распознавания
+- Флаг успешности
+- Текст ошибки
+
+## Команды для эксплуатации
+
+### Очистка старых данных
+```bash
+# Просмотр что будет удалено
+docker-compose exec app php artisan analytics:cleanup --dry-run
+
+# Удаление записей старше 3 месяцев
+docker-compose exec app php artisan analytics:cleanup
+```
+
+### Мониторинг очередей
+```bash
+# Просмотр очередей
+docker-compose exec app php artisan queue:work --verbose
+
+# Очистка неудачных задач
+docker-compose exec app php artisan queue:flush
+```
+
+### Логи
+```bash
+# Просмотр логов приложения
+docker-compose logs -f app
+
+# Просмотр логов очередей
+docker-compose logs -f queue
+```
+
+### OAuth 2.0 для аналитики
+
+Административный раздел `/analytics` защищен OAuth 2.0. Настройте провайдер в `config/auth.php`.

@@ -33,5 +33,13 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="EXTERNAL_API_BASE_URL" value="https://test-api.example.com"/>
+        <env name="EXTERNAL_API_TOKEN" value="test-token"/>
+        <env name="EXTERNAL_API_MACHINE_UID" value="test-machine-uid"/>
+        <env name="EXTERNAL_API_PROJECT_ID" value="DEMO"/>
+    </php>
+</phpunit>
+
+        <env name="EXTERNAL_API_PROJECT_ID" value="DEMO"/>
     </php>
 </phpunit>
