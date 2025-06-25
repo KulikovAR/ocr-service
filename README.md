@@ -1,92 +1,321 @@
-# cargis-ocr-service
+# Микросервис распознавания документов
 
+Микросервис для распознавания документов с использованием внешнего OCR-сервиса beorg.ru. Поддерживает распознавание паспорта РФ, СНИЛС, водительского удостоверения и свидетельства о регистрации транспортного средства.
 
+## Технологический стек
 
-## Getting started
+- **PHP 8.3+**
+- **Laravel 12**
+- **MySQL 8.0**
+- **Nginx**
+- **Docker & Docker Compose**
+- **Redis** (для очередей)
+- **Graylog** (для логирования)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Быстрый старт
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### 1. Клонирование репозитория
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+```bash
+git clone <repository-url>
+cd osr-service
 ```
-cd existing_repo
-git remote add origin http://git.cargis.pro/cargis/cargis-ocr-service.git
-git branch -M main
-git push -uf origin main
+
+### 2. Настройка окружения
+
+```bash
+cp .env.example .env
 ```
 
-## Integrate with your tools
+Отредактируйте `.env` файл:
 
-- [ ] [Set up project integrations](http://git.cargis.pro/cargis/cargis-ocr-service/-/settings/integrations)
+```env
+# Основные настройки
 
-## Collaborate with your team
+# Внешний API (bescan)
+BESCAN_BASE_URL=https://api.bescan.ru
+BESCAN_TOKEN=your_token
+BESCAN_MACHINE_UID=your_machine_uid
+BESCAN_PROJECT_ID=DEMO
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+# Graylog
+GRAYLOG_HOST=graylog
+GRAYLOG_PORT=12201
+GRAYLOG_SOURCE=ocr-service
 
-## Test and Deploy
+# Логирование
+LOG_CHANNEL=production
+```
 
-Use the built-in continuous integration in GitLab.
+### 3. Запуск сервисов
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+docker-compose up -d
+```
 
-***
+### 4. Установка зависимостей и миграции
 
-# Editing this README
+```bash
+docker-compose exec app composer install --no-dev --optimize-autoloader
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+docker-compose exec app php artisan key:generate
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+# Запуск миграций
+docker-compose exec app php artisan migrate
 
-## Name
-Choose a self-explaining name for your project.
+# Очистка кэша
+docker-compose exec app php artisan config:clear
+docker-compose exec app php artisan route:clear
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### 5. Проверка работоспособности
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+# Health check
+curl http://localhost/health
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+# Должен вернуть:
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00.000000Z",
+  "checks": {
+    "database": {"status": "healthy", "message": "Database connection successful"},
+    "external_api": {"status": "healthy", "message": "External API is accessible"},
+    "queue": {"status": "healthy", "message": "Queue system is configured"}
+  },
+  "error_flag": false
+}
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## API Спецификация
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+### POST /process_document
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Отправляет документ на распознавание.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+**Входные данные:**
+```json
+{
+  "id": "string",           // ID документа
+  "doc_type": "string",     // Тип документа: PASSPORT, PASSPORT_REG, SNILS, DLIC, STS
+  "files": ["string"],      // Массив base64 файлов
+  "callback": "string"      // URL для callback (опционально)
+}
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+**Выходные данные:**
+```json
+{
+  "document_id": "string"   // Идентификатор задачи
+}
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+**Пример запроса:**
+```bash
+curl -X POST http://localhost/process_document \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "doc_123",
+    "doc_type": "PASSPORT",
+    "files": ["base64_encoded_file_content"],
+    "callback": "https://your-service.com/webhook"
+  }'
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### GET /status/{document_id}
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+Получает статус обработки документа.
 
-## License
-For open source projects, say how it is licensed.
+**Выходные данные:**
+```json
+{
+  "document_id": "string",
+  "status": "string",       // pending, processing, completed, failed
+  "document_type": "string",
+  "data": {},              // Результат распознавания (если completed)
+  "confidences": {},       // Точность распознавания полей
+  "verifications": {}      // Результаты проверок
+}
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+**Пример запроса:**
+```bash
+curl http://localhost/status/doc_123
+```
+
+### GET /analytics
+
+Административный раздел для мониторинга (требует OAuth 2.0 авторизации).
+
+**Доступные endpoints:**
+- `GET /analytics` - Общая статистика
+- `GET /analytics/requests` - Список запросов с фильтрами
+- `GET /analytics/performance` - Статистика производительности
+
+## Поддерживаемые форматы документов
+
+### Входные данные
+- **Форматы:** JPEG, TIFF, PNG, AVIF, WEBP, PDF
+- **Размер:** 10 Кб - 5 Мб на файл
+- **Количество страниц:** до 20
+- **Размеры изображения:** 1000x1000 - 5000x5000 пикселей
+
+### Типы документов
+
+#### Паспорт РФ
+```json
+{
+  "issuedBy": "string",
+  "issueDate": "string",
+  "issueId": "string",
+  "series": "string",
+  "number": "string",
+  "gender": "string",
+  "lastName": "string",
+  "firstName": "string",
+  "middleName": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "hasPhoto": "boolean",
+  "hasOwnerSignature": "boolean",
+  "MRZ1": "string",
+  "MRZ2": "string"
+}
+```
+
+#### СНИЛС
+```json
+{
+  "number": "string",
+  "gender": "string",
+  "lastname": "string",
+  "firstname": "string",
+  "middlename": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "registrationDate": "string"
+}
+```
+
+#### Водительское удостоверение
+```json
+{
+  "gender": "string",
+  "lastName": "string",
+  "firstName": "string",
+  "middleName": "string",
+  "birthDate": "string",
+  "birthPlace": "string",
+  "issueDate": "string",
+  "endDate": "string",
+  "issuedBy": "string",
+  "placeOfResidence": "string",
+  "series": "string",
+  "number": "string",
+  "categories": "string",
+  "specialMarks": "string"
+}
+```
+
+#### СРТС
+```json
+{
+  "reg_number": "string",
+  "vin": "string",
+  "brand_rus": "string",
+  "model_rus": "string",
+  "brand_eng": "string",
+  "model_eng": "string",
+  "vehicle_type": "string",
+  "vehicle_category": "string",
+  "release_year": "string",
+  "engine_model": "string",
+  "engine_number": "string",
+  "vehicle_chassis": "string",
+  "vehicle_body": "string",
+  "color": "string",
+  "engine_power": "string",
+  "engine_volume": "string",
+  "ecologic_class": "string",
+  "passport_series": "string",
+  "passport_number": "string",
+  "max_mass": "string",
+  "mass": "string",
+  "lastnameRu": "string",
+  "firstnameRu": "string",
+  "middlenameRu": "string",
+  "federationSubject": "string",
+  "area": "string",
+  "locality": "string",
+  "street": "string",
+  "houseNumber": "string",
+  "buildingNumber": "string",
+  "apartmentNumber": "string",
+  "specialMarks": "string",
+  "departmentCode": "string",
+  "date": "string"
+}
+```
+
+## Мониторинг и логирование
+
+### Graylog интеграция
+
+Все запросы и ответы логируются в Graylog с параметром `source`:
+- Продакшн: `ocr-service`
+- Тестовая среда: `test-ocr-service`
+
+### Health Check
+
+```bash
+curl http://localhost/health
+```
+
+Флаг ошибки устанавливается при:
+- Статусах 401, 402 от внешнего API
+- 5+ последовательных ошибок
+- Проблемах с БД или внутренними ошибками
+
+### Аналитика
+
+Данные мониторинга сохраняются на 3 месяца и включают:
+- Идентификатор запроса
+- Время запроса
+- Статус-код ответа
+- Тип документа
+- Точность распознавания
+- Флаг успешности
+- Текст ошибки
+
+## Команды для эксплуатации
+
+### Очистка старых данных
+```bash
+# Просмотр что будет удалено
+docker-compose exec app php artisan analytics:cleanup --dry-run
+
+# Удаление записей старше 3 месяцев
+docker-compose exec app php artisan analytics:cleanup
+```
+
+### Мониторинг очередей
+```bash
+# Просмотр очередей
+docker-compose exec app php artisan queue:work --verbose
+
+# Очистка неудачных задач
+docker-compose exec app php artisan queue:flush
+```
+
+### Логи
+```bash
+# Просмотр логов приложения
+docker-compose logs -f app
+
+# Просмотр логов очередей
+docker-compose logs -f queue
+```
+
+### OAuth 2.0 для аналитики
+
+Административный раздел `/analytics` защищен OAuth 2.0. Настройте провайдер в `config/auth.php`.
