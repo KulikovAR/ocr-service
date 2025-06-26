@@ -39,7 +39,3 @@
         <env name="EXTERNAL_API_PROJECT_ID" value="DEMO"/>
     </php>
 </phpunit>
-
-        <env name="EXTERNAL_API_PROJECT_ID" value="DEMO"/>
-    </php>
-</phpunit>

@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Jobs\CheckRecognitionStatusJob;
 use App\Models\DocumentRecognitionTask;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DocumentRecognitionService
@@ -12,10 +14,11 @@ class DocumentRecognitionService
     protected AnalyticsService $analyticsService;
 
     public function __construct(
-        ExternalApiClient $apiClient, 
+        ExternalApiClient     $apiClient,
         DocumentDataProcessor $dataProcessor,
-        AnalyticsService $analyticsService
-    ) {
+        AnalyticsService      $analyticsService
+    )
+    {
         $this->apiClient = $apiClient;
         $this->dataProcessor = $dataProcessor;
         $this->analyticsService = $analyticsService;
@@ -27,10 +30,9 @@ class DocumentRecognitionService
     public function createRecognitionTask(array $data): array
     {
         try {
-            // Создаем запись в БД
             $task = DocumentRecognitionTask::create([
                 'status' => DocumentRecognitionTask::STATUS_PENDING,
-                'callback_url' => $data['callback_url'],
+                'callback_url' => $data['callback_url'] ?? null,
                 'metadata' => [
                     'document_id' => $data['document_id'],
                     'document_type' => $data['document_type'],
@@ -39,7 +41,6 @@ class DocumentRecognitionService
                 'document_type' => $data['document_type'],
             ]);
 
-            // Отправляем документ во внешний API
             $apiResponse = $this->apiClient->addDocument([
                 'images' => $data['images'] ?? [],
                 'scan' => $data['scan'] ?? null,
@@ -48,13 +49,11 @@ class DocumentRecognitionService
             ]);
 
             if ($apiResponse['success']) {
-                // Обновляем задачу с external_task_id
                 $task->update([
                     'external_task_id' => $apiResponse['external_task_id'],
                     'status' => DocumentRecognitionTask::STATUS_PROCESSING,
                 ]);
 
-                // Запускаем задачу для проверки статуса
                 $this->scheduleStatusCheck($task);
 
                 return [
@@ -64,7 +63,6 @@ class DocumentRecognitionService
                     'message' => 'Document sent for recognition'
                 ];
             } else {
-                // Если API вернул ошибку, помечаем задачу как неудачную
                 $task->update([
                     'status' => DocumentRecognitionTask::STATUS_FAILED,
                     'result_data' => ['error' => $apiResponse['error']]
@@ -90,7 +88,6 @@ class DocumentRecognitionService
                 'data' => $data
             ]);
 
-            // Создаем запись аналитики для ошибки
             if (isset($data['document_id'])) {
                 $this->analyticsService->createErrorRecord(
                     $data['document_id'],
@@ -120,11 +117,11 @@ class DocumentRecognitionService
 
         if (!$task->canRetry()) {
             $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
-            
-            // Создаем запись аналитики для ошибки
+
             $this->analyticsService->createAnalyticsRecord($task, 408);
-            
+
             $this->sendWebhook($task, ['error' => 'Max attempts exceeded']);
+
             return;
         }
 
@@ -137,10 +134,27 @@ class DocumentRecognitionService
 
         $apiResponse = $this->apiClient->getRecognitionResult($task->external_task_id);
 
+        if (isset($apiResponse['not_ready']) && $apiResponse['not_ready']) {
+            Log::info('checkTaskStatus: not_ready', [
+                'attempts_count' => $task->attempts_count,
+                'canRetry' => $task->canRetry()
+            ]);
+
+            if ($task->canRetry()) {
+                $this->scheduleStatusCheck($task);
+            } else {
+                $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
+
+                $this->analyticsService->createAnalyticsRecord($task, 408);
+
+                $this->sendWebhook($task, ['error' => 'Recognition timeout after max attempts']);
+            }
+            return;
+        }
+
         if ($apiResponse['success']) {
-            // Обрабатываем данные через DocumentDataProcessor
             $processedData = $this->dataProcessor->processRecognitionData(
-                $apiResponse['data'], 
+                $apiResponse['data'],
                 $task->document_type
             );
 
@@ -149,40 +163,18 @@ class DocumentRecognitionService
                 'result_data' => $processedData
             ]);
 
-            // Создаем запись аналитики для успешного завершения
             $this->analyticsService->createAnalyticsRecord($task, 200);
 
             $this->sendWebhook($task, $processedData);
         } else {
-            // Проверяем, не готов ли результат еще
-            if (isset($apiResponse['not_ready']) && $apiResponse['not_ready']) {
-                Log::info('checkTaskStatus: not_ready', [
-                    'attempts_count' => $task->attempts_count,
-                    'canRetry' => $task->canRetry()
-                ]);
-                // Если результат еще не готов, планируем следующую проверку
-                if ($task->canRetry()) {
-                    $this->scheduleStatusCheck($task);
-                } else {
-                    $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
-                    
-                    // Создаем запись аналитики для ошибки
-                    $this->analyticsService->createAnalyticsRecord($task, 408);
-                    
-                    $this->sendWebhook($task, ['error' => 'Recognition timeout after max attempts']);
-                }
-            } else {
-                // Если произошла ошибка, помечаем задачу как неудачную
-                $task->update([
-                    'status' => DocumentRecognitionTask::STATUS_FAILED,
-                    'result_data' => ['error' => $apiResponse['error']]
-                ]);
-                
-                // Создаем запись аналитики для ошибки
-                $this->analyticsService->createAnalyticsRecord($task, 500);
-                
-                $this->sendWebhook($task, ['error' => $apiResponse['error']]);
-            }
+            $task->update([
+                'status' => DocumentRecognitionTask::STATUS_FAILED,
+                'result_data' => ['error' => $apiResponse['error']]
+            ]);
+
+            $this->analyticsService->createAnalyticsRecord($task, 500);
+
+            $this->sendWebhook($task, ['error' => $apiResponse['error']]);
         }
     }
 
@@ -201,7 +193,7 @@ class DocumentRecognitionService
                 'timestamp' => now()->toISOString()
             ];
 
-            $response = \Illuminate\Support\Facades\Http::timeout(10)
+            $response = Http::timeout(10)
                 ->post($task->callback_url, $payload);
 
             Log::info('Webhook sent successfully', [
@@ -224,12 +216,12 @@ class DocumentRecognitionService
      */
     protected function scheduleStatusCheck(DocumentRecognitionTask $task): void
     {
-        \App\Jobs\CheckRecognitionStatusJob::dispatch($task)
+        CheckRecognitionStatusJob::dispatch($task)
             ->delay(now()->addSeconds(30));
-        
+
         Log::info('Status check scheduled', [
             'task_id' => $task->id,
             'scheduled_for' => now()->addSeconds(30)
         ]);
     }
-} 
+}

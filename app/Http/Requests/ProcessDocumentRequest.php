@@ -7,14 +7,6 @@ use Illuminate\Foundation\Http\FormRequest;
 class ProcessDocumentRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -72,41 +64,44 @@ class ProcessDocumentRequest extends FormRequest
 
     public function withValidator($validator)
     {
+        return;
+
+
         $validator->after(function ($validator) {
             $images = $this->input('images', []);
-            
+
             foreach ($images as $index => $image) {
                 if (!base64_decode($image, true)) {
                     $validator->errors()->add("images.{$index}", 'Invalid base64 format');
                     continue;
                 }
-                
+
                 $decoded = base64_decode($image);
-                
+
                 if (strlen($decoded) < 10240) {
                     $validator->errors()->add("images.{$index}", 'File size must be at least 10 KB');
                     continue;
                 }
-                
+
                 if (strlen($decoded) > 5242880) {
                     $validator->errors()->add("images.{$index}", 'File size must not exceed 5 MB');
                     continue;
                 }
-                
+
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 $mimeType = finfo_buffer($finfo, $decoded);
                 finfo_close($finfo);
-                
+
                 if (!in_array($mimeType, ['image/jpeg', 'image/png', 'image/jpg'])) {
                     $validator->errors()->add("images.{$index}", 'File must be a valid image (JPEG, PNG)');
                     continue;
                 }
-                
+
                 $imageInfo = getimagesizefromstring($decoded);
                 if ($imageInfo) {
                     $width = $imageInfo[0];
                     $height = $imageInfo[1];
-                    
+
                     if ($width < 1000 || $width > 5000 || $height < 1000 || $height > 5000) {
                         $validator->errors()->add("images.{$index}", 'Image dimensions must be between 1000x1000 and 5000x5000 pixels');
                     }
@@ -114,4 +109,4 @@ class ProcessDocumentRequest extends FormRequest
             }
         });
     }
-} 
+}

@@ -19,7 +19,7 @@ class DocumentDataProcessor
             $processedData['confidence_score'] = $data['confidence_score'] ?? 0.0;
         }
 
-        if (isset($data['errors']) && !empty($data['errors'])) {
+        if (!empty($data['errors'])) {
             $processedData['recognition_status'] = 'completed_with_errors';
             $processedData['errors'] = $data['errors'];
         }
@@ -29,27 +29,13 @@ class DocumentDataProcessor
 
     private function extractDocumentData(array $result, string $documentType): array
     {
-        $extractedData = [];
-
-        switch ($documentType) {
-            case 'PASSPORT':
-            case 'PASSPORT_REG':
-                $extractedData = $this->extractPassportData($result);
-                break;
-            case 'DLIC':
-                $extractedData = $this->extractDriverLicenseData($result);
-                break;
-            case 'SNILS':
-                $extractedData = $this->extractSnilsData($result);
-                break;
-            case 'STS':
-                $extractedData = $this->extractVehicleRegistrationData($result);
-                break;
-            default:
-                $extractedData = $result;
-        }
-
-        return $extractedData;
+        return match ($documentType) {
+            'PASSPORT', 'PASSPORT_REG' => $this->extractPassportData($result),
+            'DLIC' => $this->extractDriverLicenseData($result),
+            'SNILS' => $this->extractSnilsData($result),
+            'STS' => $this->extractVehicleRegistrationData($result),
+            default => $result,
+        };
     }
 
     private function extractPassportData(array $result): array
@@ -123,81 +109,4 @@ class DocumentDataProcessor
             'owner_address' => $result['owner_address'] ?? null,
         ];
     }
-
-    private function extractConfidences(array $rawData): array
-    {
-        $confidences = [];
-        
-        if (isset($rawData['confidences']) && is_array($rawData['confidences'])) {
-            foreach ($rawData['confidences'] as $field => $confidence) {
-                $confidences[$field] = is_numeric($confidence) ? (float) $confidence : 0.0;
-            }
-        }
-        
-        if (isset($rawData['confidence']) && is_array($rawData['confidence'])) {
-            foreach ($rawData['confidence'] as $field => $confidence) {
-                $confidences[$field] = is_numeric($confidence) ? (float) $confidence : 0.0;
-            }
-        }
-
-        return $confidences;
-    }
-
-    private function extractVerifications(array $rawData): array
-    {
-        $verifications = [];
-        
-        if (isset($rawData['verifications']) && is_array($rawData['verifications'])) {
-            foreach ($rawData['verifications'] as $field => $verification) {
-                $verifications[$field] = [
-                    'valid' => $verification['valid'] ?? false,
-                    'message' => $verification['message'] ?? null,
-                    'source' => $verification['source'] ?? null,
-                ];
-            }
-        }
-        
-        if (isset($rawData['verification']) && is_array($rawData['verification'])) {
-            foreach ($rawData['verification'] as $field => $verification) {
-                $verifications[$field] = [
-                    'valid' => $verification['valid'] ?? false,
-                    'message' => $verification['message'] ?? null,
-                    'source' => $verification['source'] ?? null,
-                ];
-            }
-        }
-
-        return $verifications;
-    }
-
-    public function validateRequiredFields(array $data, string $documentType): array
-    {
-        $requiredFields = $this->getRequiredFields($documentType);
-        $missingFields = [];
-
-        foreach ($requiredFields as $field) {
-            if (empty($data[$field])) {
-                $missingFields[] = $field;
-            }
-        }
-
-        return $missingFields;
-    }
-
-    private function getRequiredFields(string $documentType): array
-    {
-        switch ($documentType) {
-            case 'PASSPORT':
-            case 'PASSPORT_REG':
-                return ['Series', 'Number', 'LastName', 'FirstName', 'BirthDate'];
-            case 'SNILS':
-                return ['Number', 'Lastname', 'Firstname', 'BirthDate'];
-            case 'DLIC':
-                return ['Series', 'Number', 'LastName', 'FirstName', 'BirthDate'];
-            case 'STS':
-                return ['reg_number', 'vin', 'brand_rus', 'model_rus'];
-            default:
-                return [];
-        }
-    }
-} 
+}

@@ -14,15 +14,17 @@ class CheckRecognitionStatusJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 1;
-    public $timeout = 60;
+    public int $tries = 1;
+    public int $timeout = 60;
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         protected DocumentRecognitionTask $task
-    ) {}
+    )
+    {
+    }
 
     /**
      * Execute the job.
