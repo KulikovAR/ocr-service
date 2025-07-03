@@ -42,19 +42,4 @@ class DocumentRecognitionTask extends Model
     {
         $this->increment('attempts_count');
     }
-
-    public function scopeByStatus($query, string $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    public function scopeByDocumentType($query, string $documentType)
-    {
-        return $query->where('document_type', $documentType);
-    }
-
-    public function scopeByDateRange($query, string $startDate, string $endDate)
-    {
-        return $query->whereBetween('created_at', [$startDate, $endDate]);
-    }
 }

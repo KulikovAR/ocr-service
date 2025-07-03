@@ -12,16 +12,19 @@ class DocumentRecognitionService
     protected ExternalApiClient $apiClient;
     protected DocumentDataProcessor $dataProcessor;
     protected AnalyticsService $analyticsService;
+    protected KafkaService $kafkaService;
 
     public function __construct(
         ExternalApiClient     $apiClient,
         DocumentDataProcessor $dataProcessor,
-        AnalyticsService      $analyticsService
+        AnalyticsService      $analyticsService,
+        KafkaService          $kafkaService
     )
     {
         $this->apiClient = $apiClient;
         $this->dataProcessor = $dataProcessor;
         $this->analyticsService = $analyticsService;
+        $this->kafkaService = $kafkaService;
     }
 
     /**
@@ -112,7 +115,7 @@ class DocumentRecognitionService
 
             $this->analyticsService->createAnalyticsRecord($task, 408);
 
-            $this->sendWebhook($task, ['error' => 'Max attempts exceeded']);
+            $this->sendNotification($task, ['error' => 'Max attempts exceeded']);
 
             return;
         }
@@ -133,7 +136,7 @@ class DocumentRecognitionService
 
                 $this->analyticsService->createAnalyticsRecord($task, 408);
 
-                $this->sendWebhook($task, ['error' => 'Recognition timeout after max attempts']);
+                $this->sendNotification($task, ['error' => 'Recognition timeout after max attempts']);
             }
             return;
         }
@@ -151,7 +154,7 @@ class DocumentRecognitionService
 
             $this->analyticsService->createAnalyticsRecord($task, 200);
 
-            $this->sendWebhook($task, $processedData);
+            $this->sendNotification($task, $processedData);
         } else {
             $task->update([
                 'status' => DocumentRecognitionTask::STATUS_FAILED,
@@ -160,36 +163,36 @@ class DocumentRecognitionService
 
             $this->analyticsService->createAnalyticsRecord($task, 500);
 
-            $this->sendWebhook($task, ['error' => $apiResponse['error']]);
+            $this->sendNotification($task, ['error' => $apiResponse['error']]);
         }
     }
 
     /**
-     * Отправляет webhook на callback_url
+     * Отправляет уведомление: webhook на callback_url или сообщение в Kafka
      */
-    private function sendWebhook(DocumentRecognitionTask $task, array $data): void
+    private function sendNotification(DocumentRecognitionTask $task, array $data): void
     {
-        if($task->callback_url === null) {
-            return;
-        }
+        $payload = [
+            'task_id' => $task->id,
+            'external_task_id' => $task->external_task_id,
+            'status' => $task->status,
+            'metadata' => $task->metadata,
+            'result' => $data,
+            'timestamp' => now()->toISOString()
+        ];
 
-        try {
-            $payload = [
-                'task_id' => $task->id,
-                'external_task_id' => $task->external_task_id,
-                'status' => $task->status,
-                'metadata' => $task->metadata,
-                'result' => $data,
-                'timestamp' => now()->toISOString()
-            ];
+        if ($task->callback_url !== null) {
+            try {
+                $response = Http::timeout(10)
+                    ->post($task->callback_url, $payload);
 
-            $response = Http::timeout(10)
-                ->post($task->callback_url, $payload);
+                Log::info('Webhook sent successfully', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'response_status' => $response->status()]);
 
-            Log::info('Webhook sent successfully', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'response_status' => $response->status()]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to send webhook', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'error' => $e->getMessage()]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send webhook', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'error' => $e->getMessage()]);
+            }
+        } else {
+            $this->kafkaService->sendRecognitionResult($task->toArray(), $data);
         }
     }
 

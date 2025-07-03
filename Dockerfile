@@ -17,10 +17,11 @@ RUN apt-get update \
         nodejs \
         npm \
         libhiredis-dev \
+        librdkafka-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
+    && pecl install redis rdkafka \
+    && docker-php-ext-enable redis rdkafka \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
