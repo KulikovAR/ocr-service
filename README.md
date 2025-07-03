@@ -79,7 +79,7 @@ docker compose exec app php artisan route:clear
 
 ```bash
 # Health check
-curl http://localhost/health
+curl http://localhost/api/v1/health
 
 # Должен вернуть:
 {
@@ -273,7 +273,7 @@ curl http://localhost/status/doc_123
 ### Health Check
 
 ```bash
-curl http://localhost/health
+curl http://localhost/api/v1/health
 ```
 
 Флаг ошибки устанавливается при:
