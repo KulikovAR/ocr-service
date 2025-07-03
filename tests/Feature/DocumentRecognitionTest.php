@@ -8,6 +8,7 @@ use App\Services\DocumentRecognitionService;
 use App\Services\ExternalApiClient;
 use App\Services\DocumentDataProcessor;
 use App\Services\AnalyticsService;
+use App\Services\KafkaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class DocumentRecognitionTest extends TestCase
@@ -21,6 +22,12 @@ class DocumentRecognitionTest extends TestCase
         parent::setUp();
         
         $this->validBase64Image = base64_encode(str_repeat('A', 15000));
+        
+        // Мокаем KafkaService чтобы не мешал в тестах
+        $this->mock(KafkaService::class, function ($mock) {
+            $mock->shouldReceive('sendMessage')->andReturn(true);
+            $mock->shouldReceive('sendRecognitionResult')->andReturn(true);
+        });
     }
 
     public function test_can_process_document(): void
@@ -253,7 +260,8 @@ class DocumentRecognitionTest extends TestCase
         $apiClient = app(ExternalApiClient::class);
         $dataProcessor = app(DocumentDataProcessor::class);
         $analyticsService = app(AnalyticsService::class);
-        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService);
+        $kafkaService = app(KafkaService::class);
+        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService, $kafkaService);
         // Подменяем protected метод scheduleStatusCheck через Closure::bind
         $closure = function (
             \App\Models\DocumentRecognitionTask $task

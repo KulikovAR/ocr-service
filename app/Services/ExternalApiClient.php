@@ -96,16 +96,14 @@ class ExternalApiClient
             if ($response->successful()) {
                 $responseData = $response->json();
 
-                // Проверяем, есть ли данные документа в ответе
-                if (isset($responseData['document_id']) && isset($responseData['documents']) && !empty($responseData['documents'])) {
+                if (isset($responseData['document_id']) && !empty($responseData['documents'])) {
                     Log::info('Recognition completed', ['external_task_id' => $externalTaskId, 'data' => $responseData]);
 
                     return [
                         'success' => true,
                         'data' => $responseData
                     ];
-                } elseif (isset($responseData['document_id']) && (!isset($responseData['documents']) || empty($responseData['documents']))) {
-                    // Документ существует, но данные еще не готовы
+                } elseif (isset($responseData['document_id']) && (empty($responseData['documents']))) {
                     Log::info('Recognition still processing', ['external_task_id' => $externalTaskId]);
 
                     return [

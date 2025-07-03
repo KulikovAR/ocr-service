@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\ExternalApiClient;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,8 +13,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(\App\Services\ExternalApiClient::class, function ($app) {
-            return new \App\Services\ExternalApiClient();
+        $this->app->singleton(ExternalApiClient::class, function ($app) {
+            return new ExternalApiClient();
         });
     }
 
