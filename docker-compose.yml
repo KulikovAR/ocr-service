@@ -25,6 +25,23 @@ services:
     networks:
       - cargis-ocr
 
+  ocr-queue:
+    build:
+      context: ./app
+      dockerfile: ../docker/php/Dockerfile
+    container_name: ocr-queue
+    restart: unless-stopped
+    depends_on:
+      - ocr-app
+    working_dir: /var/www/
+    volumes:
+      - ./app:/var/www
+      - ./docker/queue:/usr/local/bin/queue
+      - ./.env:/var/www/.env
+    command: /usr/local/bin/queue/start-queue.sh
+    networks:
+      - cargis-ocr
+
   ocr-db:
     image: mysql:8.0
     container_name: ocr-db
