@@ -22,7 +22,7 @@ services:
     volumes:
       - ./app:/var/www
     networks:
-      - cargis-ocr-service
+      - cargis-ocr
 
   db:
     image: mysql:8.0
@@ -46,7 +46,7 @@ services:
     volumes:
       - ocr-db:/var/lib/mysql
     networks:
-      - cargis-ocr-service
+      - cargis-ocr
 
   redis:
     image: redis:7-alpine
@@ -63,7 +63,7 @@ services:
     volumes:
       - ocr-redis:/data
     networks:
-      - cargis-ocr-service
+      - cargis-ocr
 
   nginx:
     image: nginx:stable-bookworm
@@ -77,7 +77,7 @@ services:
       - ./app:/var/www
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
-      - cargis-ocr-service
+      - cargis-ocr
 
 volumes:
   ocr-db:
@@ -88,6 +88,6 @@ volumes:
       project: "cargis-ocr"
 
 networks:
-  cargis-ocr-service:
+  cargis-ocr:
     #name: ftl-backend_transportation
     #external: true
