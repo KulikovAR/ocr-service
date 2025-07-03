@@ -10,6 +10,7 @@
 - **Nginx**
 - **Docker & Docker Compose**
 - **Redis** (для очередей)
+- **Kafka** (для отправки результатов распознавания)
 - **Graylog** (для логирования)
 
 ## Быстрый старт
@@ -42,6 +43,12 @@ BESCAN_PROJECT_ID=DEMO
 GRAYLOG_HOST=graylog
 GRAYLOG_PORT=12201
 GRAYLOG_SOURCE=ocr-service
+
+# Kafka
+KAFKA_ENABLED=true
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=osr-service
+KAFKA_TOPIC=document-recognition-results
 
 # Логирование
 LOG_CHANNEL=production
@@ -101,6 +108,9 @@ curl http://localhost/health
   "files": ["string"],      // Массив base64 файлов
   "callback": "string"      // URL для callback (опционально)
 }
+```
+
+**Примечание:** Если `callback` не указан, результат распознавания отправляется в Kafka топик `document-recognition-results`.
 ```
 
 **Выходные данные:**
