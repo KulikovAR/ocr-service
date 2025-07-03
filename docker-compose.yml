@@ -1,17 +1,15 @@
-version: '3.8'
-
 services:
-  app:
+  ocr-app:
     build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: app
-    working_dir: /var/www
-    volumes:
-      - ./:/var/www
+      context: ./app
+      dockerfile: ../docker/php/Dockerfile
+    container_name: ocr-app
+    restart: unless-stopped
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - DB_HOST=db
       - DB_DATABASE=laravel
@@ -19,42 +17,77 @@ services:
       - DB_PASSWORD=secret
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    working_dir: /var/www
+    volumes:
+      - ./app:/var/www
+    networks:
+      - cargis-ocr
 
   db:
     image: mysql:8.0
-    container_name: db
+    container_name: ocr-db
     restart: always
+    env_file: .env
     environment:
       MYSQL_DATABASE: laravel
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_USER: laravel
       MYSQL_PASSWORD: secret
+    command: '--default-authentication-plugin=mysql_native_password'
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      start_period: 10s
+      interval: 15s
+      timeout: 5s
+      retries: 3
     ports:
       - "3307:3306"
     volumes:
-      - dbdata:/var/lib/mysql
+      - ocr-db:/var/lib/mysql
+    networks:
+      - cargis-ocr
 
   redis:
     image: redis:7-alpine
-    container_name: redis
+    container_name: ocr-redis
     restart: always
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     ports:
       - "6379:6379"
     volumes:
-      - redisdata:/data
-    command: redis-server --appendonly yes
+      - ocr-redis:/data
+    networks:
+      - cargis-ocr
 
   nginx:
-    image: nginx:alpine
-    container_name: nginx
+    image: nginx:stable-bookworm
+    container_name: ocr-nginx
+    depends_on:
+      - ocr-app
+    restart: unless-stopped
     ports:
       - "8080:80"
     volumes:
-      - ./:/var/www
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - app
+      - ./app:/var/www
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - cargis-ocr
 
 volumes:
-  dbdata:
-  redisdata:
+  ocr-db:
+    labels:
+      project: "cargis-ocr"
+  ocr-redis:
+    labels:
+      project: "cargis-ocr"
+
+networks:
+  cargis-ocr:
+    #name: ftl-backend_transportation
+    #external: true
+            
