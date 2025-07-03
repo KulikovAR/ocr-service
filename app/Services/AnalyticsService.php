@@ -15,7 +15,7 @@ class AnalyticsService
     {
         try {
             RecognitionAnalytics::createFromTask($task, $statusCode);
-            
+
             Log::info('Analytics record created', [
                 'task_id' => $task->id,
                 'document_type' => $task->document_type,
@@ -49,7 +49,7 @@ class AnalyticsService
                     'error_type' => 'processing_error',
                 ],
             ]);
-            
+
             Log::info('Error analytics record created', [
                 'document_id' => $documentId,
                 'document_type' => $documentType,
@@ -178,12 +178,12 @@ class AnalyticsService
     {
         $cutoffDate = now()->subMonths(3);
         $deletedCount = RecognitionAnalytics::where('request_date', '<', $cutoffDate)->delete();
-        
+
         Log::info('Cleaned up old analytics records', [
             'deleted_count' => $deletedCount,
             'cutoff_date' => $cutoffDate->toISOString(),
         ]);
-        
+
         return $deletedCount;
     }
-} 
+}

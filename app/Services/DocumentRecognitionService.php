@@ -83,10 +83,7 @@ class DocumentRecognitionService
             }
 
         } catch (\Exception $e) {
-            Log::error('Failed to create recognition task', [
-                'error' => $e->getMessage(),
-                'data' => $data
-            ]);
+            Log::error('Failed to create recognition task', ['error' => $e->getMessage(), 'data' => $data]);
 
             if (isset($data['document_id'])) {
                 $this->analyticsService->createErrorRecord(
@@ -109,11 +106,7 @@ class DocumentRecognitionService
      */
     public function checkTaskStatus(DocumentRecognitionTask $task): void
     {
-        Log::info('checkTaskStatus: attempts_count', [
-            'attempts_count' => $task->attempts_count,
-            'MAX_ATTEMPTS' => DocumentRecognitionTask::MAX_ATTEMPTS,
-            'canRetry_before' => $task->canRetry()
-        ]);
+        Log::info('checkTaskStatus: attempts_count', ['attempts_count' => $task->attempts_count, 'MAX_ATTEMPTS' => DocumentRecognitionTask::MAX_ATTEMPTS, 'canRetry_before' => $task->canRetry()]);
 
         if (!$task->canRetry()) {
             $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
@@ -127,18 +120,12 @@ class DocumentRecognitionService
 
         $task->incrementAttempts();
 
-        Log::info('checkTaskStatus: after increment', [
-            'attempts_count' => $task->attempts_count,
-            'canRetry_after' => $task->canRetry()
-        ]);
+        Log::info('checkTaskStatus: after increment', ['attempts_count' => $task->attempts_count, 'canRetry_after' => $task->canRetry()]);
 
         $apiResponse = $this->apiClient->getRecognitionResult($task->external_task_id);
 
         if (isset($apiResponse['not_ready']) && $apiResponse['not_ready']) {
-            Log::info('checkTaskStatus: not_ready', [
-                'attempts_count' => $task->attempts_count,
-                'canRetry' => $task->canRetry()
-            ]);
+            Log::info('checkTaskStatus: not_ready', ['attempts_count' => $task->attempts_count, 'canRetry' => $task->canRetry()]);
 
             if ($task->canRetry()) {
                 $this->scheduleStatusCheck($task);
@@ -183,6 +170,10 @@ class DocumentRecognitionService
      */
     private function sendWebhook(DocumentRecognitionTask $task, array $data): void
     {
+        if($task->callback_url === null) {
+            return;
+        }
+
         try {
             $payload = [
                 'task_id' => $task->id,
@@ -196,18 +187,10 @@ class DocumentRecognitionService
             $response = Http::timeout(10)
                 ->post($task->callback_url, $payload);
 
-            Log::info('Webhook sent successfully', [
-                'task_id' => $task->id,
-                'callback_url' => $task->callback_url,
-                'response_status' => $response->status()
-            ]);
+            Log::info('Webhook sent successfully', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'response_status' => $response->status()]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to send webhook', [
-                'task_id' => $task->id,
-                'callback_url' => $task->callback_url,
-                'error' => $e->getMessage()
-            ]);
+            Log::error('Failed to send webhook', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'error' => $e->getMessage()]);
         }
     }
 
@@ -219,9 +202,6 @@ class DocumentRecognitionService
         CheckRecognitionStatusJob::dispatch($task)
             ->delay(now()->addSeconds(30));
 
-        Log::info('Status check scheduled', [
-            'task_id' => $task->id,
-            'scheduled_for' => now()->addSeconds(30)
-        ]);
+        Log::info('Status check scheduled', ['task_id' => $task->id, 'scheduled_for' => now()->addSeconds(30)]);
     }
 }
