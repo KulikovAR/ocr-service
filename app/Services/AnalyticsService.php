@@ -16,16 +16,9 @@ class AnalyticsService
         try {
             RecognitionAnalytics::createFromTask($task, $statusCode);
 
-            Log::info('Analytics record created', [
-                'task_id' => $task->id,
-                'document_type' => $task->document_type,
-                'status' => $task->status,
-            ]);
+            Log::info('Analytics record created', ['task_id' => $task->id, 'document_type' => $task->document_type, 'status' => $task->status]);
         } catch (\Exception $e) {
-            Log::error('Failed to create analytics record', [
-                'task_id' => $task->id,
-                'error' => $e->getMessage(),
-            ]);
+            Log::error('Failed to create analytics record', ['task_id' => $task->id, 'error' => $e->getMessage()]);
         }
     }
 
@@ -35,31 +28,11 @@ class AnalyticsService
     public function createErrorRecord(string $documentId, string $documentType, string $error, int $statusCode = 500): void
     {
         try {
-            RecognitionAnalytics::create([
-                'document_id' => $documentId,
-                'request_date' => now(),
-                'status_code' => $statusCode,
-                'document_type' => $documentType,
-                'max_confidence' => null,
-                'min_confidence' => null,
-                'recognition_success' => false,
-                'error_text' => $error,
-                'processing_time_ms' => null,
-                'metadata' => [
-                    'error_type' => 'processing_error',
-                ],
-            ]);
+            RecognitionAnalytics::createErrorRecord($documentId, $documentType, $error, $statusCode);
 
-            Log::info('Error analytics record created', [
-                'document_id' => $documentId,
-                'document_type' => $documentType,
-                'error' => $error,
-            ]);
+            Log::info('Error analytics record created', ['document_id' => $documentId, 'document_type' => $documentType, 'error' => $error]);
         } catch (\Exception $e) {
-            Log::error('Failed to create error analytics record', [
-                'document_id' => $documentId,
-                'error' => $e->getMessage(),
-            ]);
+            Log::error('Failed to create error analytics record', ['document_id' => $documentId, 'error' => $e->getMessage()]);
         }
     }
 
@@ -179,10 +152,7 @@ class AnalyticsService
         $cutoffDate = now()->subMonths(3);
         $deletedCount = RecognitionAnalytics::where('request_date', '<', $cutoffDate)->delete();
 
-        Log::info('Cleaned up old analytics records', [
-            'deleted_count' => $deletedCount,
-            'cutoff_date' => $cutoffDate->toISOString(),
-        ]);
+        Log::info('Cleaned up old analytics records', ['deleted_count' => $deletedCount, 'cutoff_date' => $cutoffDate->toISOString()]);
 
         return $deletedCount;
     }

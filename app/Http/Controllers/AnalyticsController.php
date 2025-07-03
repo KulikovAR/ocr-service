@@ -19,6 +19,8 @@ class AnalyticsController extends Controller
      */
     public function dashboard()
     {
-        return view('analytics.dashboard');
+        $stats = $this->analyticsService->getDashboardStats();
+        
+        return view('analytics.dashboard', compact('stats'));
     }
 } 

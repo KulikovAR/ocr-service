@@ -89,8 +89,15 @@ class RecognitionAnalytics extends Model
         $maxConfidence = null;
         $minConfidence = null;
 
-        if (isset($resultData['confidences']) && is_array($resultData['confidences'])) {
-            $confidences = array_filter($resultData['confidences'], 'is_numeric');
+        // Получаем confidence score из обработанных данных
+        if (isset($resultData['confidence_score']) && is_numeric($resultData['confidence_score'])) {
+            $maxConfidence = $resultData['confidence_score'];
+            $minConfidence = $resultData['confidence_score'];
+        }
+        
+        // Альтернативно, если есть metadata с confidences
+        if (isset($resultData['metadata']['confidences']) && is_array($resultData['metadata']['confidences'])) {
+            $confidences = array_filter($resultData['metadata']['confidences'], 'is_numeric');
             if (!empty($confidences)) {
                 $maxConfidence = max($confidences);
                 $minConfidence = min($confidences);
@@ -114,12 +121,12 @@ class RecognitionAnalytics extends Model
             'request_date' => $task->created_at,
             'status_code' => $statusCode,
             'document_type' => $task->document_type,
-//            'max_confidence' => $maxConfidence,
-//            'min_confidence' => $minConfidence,
-//            'recognition_success' => $recognitionSuccess,
-//            'error_text' => $errorText,
-//            'processing_time_ms' => $processingTime,
-//            'metadata' => $task->metadata,
+            'max_confidence' => $maxConfidence,
+            'min_confidence' => $minConfidence,
+            'recognition_success' => $recognitionSuccess,
+            'error_text' => $errorText,
+            'processing_time_ms' => $processingTime,
+            'metadata' => $task->metadata,
         ]);
     }
 
@@ -136,7 +143,9 @@ class RecognitionAnalytics extends Model
             'recognition_success' => false,
             'error_text' => $errorText,
             'processing_time_ms' => null,
-            'metadata' => [],
+            'metadata' => [
+                'error_type' => 'processing_error',
+            ],
         ]);
     }
 

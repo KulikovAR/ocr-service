@@ -147,11 +147,6 @@ curl http://localhost/status/doc_123
 
 Административный раздел для мониторинга (требует OAuth 2.0 авторизации).
 
-**Доступные endpoints:**
-- `GET /analytics` - Общая статистика
-- `GET /analytics/requests` - Список запросов с фильтрами
-- `GET /analytics/performance` - Статистика производительности
-
 ## Поддерживаемые форматы документов
 
 ### Входные данные
@@ -222,24 +217,24 @@ curl http://localhost/status/doc_123
 {
   "reg_number": "string",
   "vin": "string",
-  "brand_rus": "string",
-  "model_rus": "string",
-  "brand_eng": "string",
-  "model_eng": "string",
-  "vehicle_type": "string",
-  "vehicle_category": "string",
-  "release_year": "string",
-  "engine_model": "string",
-  "engine_number": "string",
-  "vehicle_chassis": "string",
-  "vehicle_body": "string",
+  "brandRus": "string",
+  "modelRus": "string",
+  "brandEng": "string",
+  "modelEng": "string",
+  "vehicleType": "string",
+  "vehicleCategory": "string",
+  "releaseYear": "string",
+  "engineModel": "string",
+  "engineNumber": "string",
+  "vehicleChassis": "string",
+  "vehicleBody": "string",
   "color": "string",
-  "engine_power": "string",
-  "engine_volume": "string",
-  "ecologic_class": "string",
-  "passport_series": "string",
-  "passport_number": "string",
-  "max_mass": "string",
+  "enginePower": "string",
+  "engineVolume": "string",
+  "ecologicClass": "string",
+  "passportSeries": "string",
+  "passportNumber": "string",
+  "maxMass": "string",
   "mass": "string",
   "lastnameRu": "string",
   "firstnameRu": "string",
@@ -297,25 +292,3 @@ docker-compose exec app php artisan analytics:cleanup --dry-run
 # Удаление записей старше 3 месяцев
 docker-compose exec app php artisan analytics:cleanup
 ```
-
-### Мониторинг очередей
-```bash
-# Просмотр очередей
-docker-compose exec app php artisan queue:work --verbose
-
-# Очистка неудачных задач
-docker-compose exec app php artisan queue:flush
-```
-
-### Логи
-```bash
-# Просмотр логов приложения
-docker-compose logs -f app
-
-# Просмотр логов очередей
-docker-compose logs -f queue
-```
-
-### OAuth 2.0 для аналитики
-
-Административный раздел `/analytics` защищен OAuth 2.0. Настройте провайдер в `config/auth.php`.

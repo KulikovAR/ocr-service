@@ -7,33 +7,8 @@ use App\Http\Requests\ProcessDocumentRequest;
 use App\Models\DocumentRecognitionTask;
 use App\Services\DocumentRecognitionService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
-/**
- * @OA\Info(
- *     version="1.0.0",
- *     title="Document Recognition API",
- *     description="API для распознавания документов через внешний сервис bescan.ru",
- *     @OA\Contact(
- *         email="support@example.com",
- *         name="API Support"
- *     ),
- *     @OA\License(
- *         name="MIT",
- *         url="https://opensource.org/licenses/MIT"
- *     )
- * )
- * 
- * @OA\Server(
- *     url="http://127.0.0.1:8080/api/v1",
- *     description="Local Development Server"
- * )
- * 
- * @OA\Tag(
- *     name="Document Recognition",
- *     description="Операции с распознаванием документов"
- * )
- */
+
 class DocumentRecognitionController extends Controller
 {
     protected DocumentRecognitionService $recognitionService;
@@ -93,9 +68,9 @@ class DocumentRecognitionController extends Controller
     public function recognize(ProcessDocumentRequest $request): JsonResponse
     {
         $data = $request->validated();
-        
+
         $result = $this->recognitionService->createRecognitionTask($data);
-        
+
         if ($result['success']) {
             return response()->json([
                 'success' => true,
@@ -180,9 +155,9 @@ class DocumentRecognitionController extends Controller
         ];
 
         if ($task->status === DocumentRecognitionTask::STATUS_COMPLETED) {
-            $response['data'] = $task->result_data['data'] ?? [];
-            $response['confidences'] = $task->result_data['confidences'] ?? [];
-            $response['verifications'] = $task->result_data['verifications'] ?? [];
+            $response['data'] = $task->result_data['extracted_data'] ?? [];
+            $response['confidences'] = $task->result_data['confidence_score'] ?? [];
+            $response['verifications'] = $task->result_data['metadata']['verifications'] ?? [];
         } elseif ($task->status === DocumentRecognitionTask::STATUS_FAILED) {
             $response['error'] = $task->result_data['error'] ?? 'Recognition failed';
         }

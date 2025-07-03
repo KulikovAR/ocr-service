@@ -6,6 +6,10 @@ class DocumentDataProcessor
 {
     public function processRecognitionData(array $data, string $documentType): array
     {
+        if (!is_array($data['documents']) || empty($data['documents'])) {
+            return [];
+        }
+
         $processedData = [
             'document_type' => $documentType,
             'recognition_status' => 'completed',
@@ -14,40 +18,30 @@ class DocumentDataProcessor
             'processing_time' => $data['processing_time'] ?? 0,
         ];
 
-        // Обрабатываем новый формат данных от API
-        if (isset($data['documents']) && is_array($data['documents']) && !empty($data['documents'])) {
-            $document = $data['documents'][0]; // Берем первый документ
-            $documentData = $document['data'] ?? [];
-            $metadata = $document['metadata'] ?? [];
-            
-            $processedData['extracted_data'] = $this->extractDocumentData($documentData, $documentType);
-            
-            // Вычисляем средний confidence score из metadata
-            if (isset($metadata['confidences']) && is_array($metadata['confidences'])) {
-                $confidences = array_values($metadata['confidences']);
-                $processedData['confidence_score'] = !empty($confidences) ? array_sum($confidences) / count($confidences) : 0.0;
-            }
-            
-            // Добавляем дополнительную информацию
-            $processedData['metadata'] = [
-                'verifications' => $metadata['verifications'] ?? [],
-                'external_integrations' => $metadata['external_integrations'] ?? [],
-                'broken_reasons' => $document['broken_reasons'] ?? [],
-                'broken_reasons_ru' => $document['broken_reasons_ru'] ?? [],
-            ];
+
+        $document = $data['documents'][0];
+        $documentData = $document['data'] ?? [];
+        $metadata = $document['metadata'] ?? [];
+
+        $processedData['extracted_data'] = $this->extractDocumentData($documentData, $documentType);
+
+        if (isset($metadata['confidences']) && is_array($metadata['confidences'])) {
+            $confidences = array_values($metadata['confidences']);
+            $processedData['confidence_score'] = !empty($confidences) ? array_sum($confidences) / count($confidences) : 0.0;
         }
 
-        // Проверяем на ошибки
-        if (isset($data['documents']) && is_array($data['documents'])) {
-            foreach ($data['documents'] as $document) {
-                if (!empty($document['broken_reasons']) || !empty($document['broken_reasons_ru'])) {
-                    $processedData['recognition_status'] = 'completed_with_errors';
-                    $processedData['errors'] = array_merge(
-                        $document['broken_reasons'] ?? [],
-                        $document['broken_reasons_ru'] ?? []
-                    );
-                    break;
-                }
+        $processedData['metadata'] = [
+            'verifications' => $metadata['verifications'] ?? [],
+            'external_integrations' => $metadata['external_integrations'] ?? [],
+            'broken_reasons' => $document['broken_reasons'] ?? [],
+            'broken_reasons_ru' => $document['broken_reasons_ru'] ?? [],
+        ];
+
+        foreach ($data['documents'] as $document) {
+            if (!empty($document['broken_reasons']) || !empty($document['broken_reasons_ru'])) {
+                $processedData['recognition_status'] = 'completed_with_errors';
+                $processedData['errors'] = [...$document['broken_reasons'] ?? [], ...$document['broken_reasons_ru'] ?? []];
+                break;
             }
         }
 
@@ -70,20 +64,20 @@ class DocumentDataProcessor
         return [
             'series' => $result['Series'] ?? null,
             'number' => $result['Number'] ?? null,
-            'issued_by' => $result['IssuedBy'] ?? null,
-            'issue_date' => $result['IssueDate'] ?? null,
-            'department_code' => $result['IssueId'] ?? null,
-            'last_name' => $result['LastName'] ?? null,
-            'first_name' => $result['FirstName'] ?? null,
-            'middle_name' => $result['MiddleName'] ?? null,
-            'birth_date' => $result['BirthDate'] ?? null,
-            'birth_place' => $result['BirthPlace'] ?? null,
+            'issuedBy' => $result['IssuedBy'] ?? null,
+            'issueDate' => $result['IssueDate'] ?? null,
+            'departmentCode' => $result['IssueId'] ?? null,
+            'lastName' => $result['LastName'] ?? null,
+            'firstName' => $result['FirstName'] ?? null,
+            'middleName' => $result['MiddleName'] ?? null,
+            'birthDate' => $result['BirthDate'] ?? null,
+            'birthPlace' => $result['BirthPlace'] ?? null,
             'gender' => $result['Gender'] ?? null,
-            'registration_address' => $result['Address'] ?? null,
+            'registrationAddress' => $result['Address'] ?? null,
             'mrz1' => $result['MRZ1'] ?? null,
             'mrz2' => $result['MRZ2'] ?? null,
-            'has_photo' => $result['HasPhoto'] ?? null,
-            'has_owner_signature' => $result['HasOwnerSignature'] ?? null,
+            'hasPhoto' => $result['HasPhoto'] ?? null,
+            'hasOwnerSignature' => $result['HasOwnerSignature'] ?? null,
         ];
     }
 
@@ -92,14 +86,14 @@ class DocumentDataProcessor
         return [
             'series' => $result['Series'] ?? null,
             'number' => $result['Number'] ?? null,
-            'issued_by' => $result['IssuedBy'] ?? null,
-            'issue_date' => $result['IssueDate'] ?? null,
-            'expiry_date' => $result['ExpiryDate'] ?? null,
-            'last_name' => $result['LastName'] ?? null,
-            'first_name' => $result['FirstName'] ?? null,
-            'middle_name' => $result['MiddleName'] ?? null,
-            'birth_date' => $result['BirthDate'] ?? null,
-            'birth_place' => $result['BirthPlace'] ?? null,
+            'issuedBy' => $result['IssuedBy'] ?? null,
+            'issueDate' => $result['IssueDate'] ?? null,
+            'expiryDate' => $result['ExpiryDate'] ?? null,
+            'lastName' => $result['LastName'] ?? null,
+            'firstName' => $result['FirstName'] ?? null,
+            'middleName' => $result['MiddleName'] ?? null,
+            'birthDate' => $result['BirthDate'] ?? null,
+            'birthPlace' => $result['BirthPlace'] ?? null,
             'gender' => $result['Gender'] ?? null,
             'categories' => $result['Categories'] ?? [],
             'photo' => $result['Photo'] ?? null,
@@ -113,14 +107,14 @@ class DocumentDataProcessor
     {
         return [
             'number' => $result['Number'] ?? null,
-            'last_name' => $result['LastName'] ?? null,
-            'first_name' => $result['FirstName'] ?? null,
-            'middle_name' => $result['MiddleName'] ?? null,
-            'birth_date' => $result['BirthDate'] ?? null,
+            'lastName' => $result['LastName'] ?? null,
+            'firstName' => $result['FirstName'] ?? null,
+            'middleName' => $result['MiddleName'] ?? null,
+            'birthDate' => $result['BirthDate'] ?? null,
             'gender' => $result['Gender'] ?? null,
-            'issue_date' => $result['IssueDate'] ?? null,
-            'issued_by' => $result['IssuedBy'] ?? null,
-            'registration_date' => $result['RegistrationDate'] ?? null,
+            'issueDate' => $result['IssueDate'] ?? null,
+            'issuedBy' => $result['IssuedBy'] ?? null,
+            'registrationDate' => $result['RegistrationDate'] ?? null,
         ];
     }
 
@@ -129,26 +123,26 @@ class DocumentDataProcessor
         return [
             'series' => $result['Series'] ?? null,
             'number' => $result['Number'] ?? null,
-            'issued_by' => $result['IssuedBy'] ?? null,
-            'issue_date' => $result['IssueDate'] ?? null,
-            'vehicle_make' => $result['VehicleMake'] ?? null,
-            'vehicle_model' => $result['VehicleModel'] ?? null,
-            'year_of_manufacture' => $result['YearOfManufacture'] ?? null,
+            'issuedBy' => $result['IssuedBy'] ?? null,
+            'issueDate' => $result['IssueDate'] ?? null,
+            'vehicleMake' => $result['VehicleMake'] ?? null,
+            'vehicleModel' => $result['VehicleModel'] ?? null,
+            'yearOfManufacture' => $result['YearOfManufacture'] ?? null,
             'vin' => $result['VIN'] ?? null,
-            'engine_number' => $result['EngineNumber'] ?? null,
-            'chassis_number' => $result['ChassisNumber'] ?? null,
-            'body_number' => $result['BodyNumber'] ?? null,
+            'engineNumber' => $result['EngineNumber'] ?? null,
+            'chassisNumber' => $result['ChassisNumber'] ?? null,
+            'bodyNumber' => $result['BodyNumber'] ?? null,
             'color' => $result['Color'] ?? null,
-            'engine_power' => $result['EnginePower'] ?? null,
-            'engine_displacement' => $result['EngineDisplacement'] ?? null,
-            'fuel_type' => $result['FuelType'] ?? null,
-            'owner_name' => $result['OwnerName'] ?? null,
-            'owner_address' => $result['OwnerAddress'] ?? null,
-            'registration_date' => $result['RegistrationDate'] ?? null,
-            'expiry_date' => $result['ExpiryDate'] ?? null,
-            'vehicle_type' => $result['VehicleType'] ?? null,
+            'enginePower' => $result['EnginePower'] ?? null,
+            'engineDisplacement' => $result['EngineDisplacement'] ?? null,
+            'fuelType' => $result['FuelType'] ?? null,
+            'ownerName' => $result['OwnerName'] ?? null,
+            'ownerAddress' => $result['OwnerAddress'] ?? null,
+            'registrationDate' => $result['RegistrationDate'] ?? null,
+            'expiryDate' => $result['ExpiryDate'] ?? null,
+            'vehicleType' => $result['VehicleType'] ?? null,
             'weight' => $result['Weight'] ?? null,
-            'max_weight' => $result['MaxWeight'] ?? null,
+            'maxWeight' => $result['MaxWeight'] ?? null,
         ];
     }
 }
