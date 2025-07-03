@@ -25,7 +25,22 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Главная страница аналитики
+     * @OA\Get(
+     *     path="/analytics",
+     *     operationId="getAnalyticsIndex",
+     *     tags={"Analytics"},
+     *     summary="Получить общую статистику аналитики",
+     *     description="Возвращает общую статистику производительности и по типам документов",
+     *     @OA\Response(
+     *         response=200,
+     *         description="Статистика получена успешно",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="overall_stats", type="object"),
+     *             @OA\Property(property="document_type_stats", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="last_updated", type="string", format="date-time")
+     *         )
+     *     )
+     * )
      */
     public function index(): JsonResponse
     {
@@ -41,7 +56,53 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Статистика по запросам
+     * @OA\Get(
+     *     path="/analytics/requests",
+     *     operationId="getAnalyticsRequests",
+     *     tags={"Analytics"},
+     *     summary="Получить список запросов с фильтрацией",
+     *     description="Возвращает пагинированный список запросов с возможностью фильтрации",
+     *     @OA\Parameter(
+     *         name="date_from",
+     *         in="query",
+     *         required=false,
+     *         description="Начальная дата фильтрации",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="date_to",
+     *         in="query",
+     *         required=false,
+     *         description="Конечная дата фильтрации",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="document_type",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по типу документа",
+     *         @OA\Schema(type="string", enum={"PASSPORT", "PASSPORT_REG", "DLIC", "SNILS", "STS"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="success",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по успешности",
+     *         @OA\Schema(type="boolean")
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         description="Количество записей на странице",
+     *         @OA\Schema(type="integer", default=50)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Список запросов получен успешно",
+     *         @OA\JsonContent(type="object")
+     *     )
+     * )
      */
     public function requests(Request $request): JsonResponse
     {
@@ -82,7 +143,37 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Статистика производительности
+     * @OA\Get(
+     *     path="/analytics/performance",
+     *     operationId="getAnalyticsPerformance",
+     *     tags={"Analytics"},
+     *     summary="Получить статистику производительности",
+     *     description="Возвращает детальную статистику производительности за указанный период",
+     *     @OA\Parameter(
+     *         name="date_from",
+     *         in="query",
+     *         required=false,
+     *         description="Начальная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="date_to",
+     *         in="query",
+     *         required=false,
+     *         description="Конечная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Статистика производительности получена успешно",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="period", type="object"),
+     *             @OA\Property(property="overall_performance", type="object"),
+     *             @OA\Property(property="document_type_breakdown", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="recent_requests", type="array", @OA\Items(type="object"))
+     *         )
+     *     )
+     * )
      */
     public function performance(Request $request): JsonResponse
     {
@@ -118,6 +209,53 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/analytics/summary",
+     *     operationId="getAnalyticsSummary",
+     *     tags={"Analytics"},
+     *     summary="Получить сводную статистику",
+     *     description="Возвращает сводную статистику с возможностью фильтрации",
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         required=false,
+     *         description="Начальная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         required=false,
+     *         description="Конечная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="document_type",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по типу документа",
+     *         @OA\Schema(type="string", enum={"PASSPORT", "PASSPORT_REG", "DLIC", "SNILS", "STS"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="success",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по успешности",
+     *         @OA\Schema(type="string", enum={"true", "false"})
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Сводная статистика получена успешно",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="summary", type="object"),
+     *             @OA\Property(property="document_types", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="recent_requests", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="period", type="object")
+     *         )
+     *     )
+     * )
+     */
     public function getSummary(Request $request): JsonResponse
     {
         $startDate = $request->get('start_date', now()->subDays(30)->toDateString());
@@ -171,6 +309,60 @@ class AnalyticsController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/analytics/detailed",
+     *     operationId="getAnalyticsDetailed",
+     *     tags={"Analytics"},
+     *     summary="Получить детальную аналитику",
+     *     description="Возвращает детальную аналитику с пагинацией и статистикой ошибок",
+     *     @OA\Parameter(
+     *         name="start_date",
+     *         in="query",
+     *         required=false,
+     *         description="Начальная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="end_date",
+     *         in="query",
+     *         required=false,
+     *         description="Конечная дата периода",
+     *         @OA\Schema(type="string", format="date")
+     *     ),
+     *     @OA\Parameter(
+     *         name="document_type",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по типу документа",
+     *         @OA\Schema(type="string", enum={"PASSPORT", "PASSPORT_REG", "DLIC", "SNILS", "STS"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="success",
+     *         in="query",
+     *         required=false,
+     *         description="Фильтр по успешности",
+     *         @OA\Schema(type="string", enum={"true", "false"})
+     *     ),
+     *     @OA\Parameter(
+     *         name="per_page",
+     *         in="query",
+     *         required=false,
+     *         description="Количество записей на странице (максимум 100)",
+     *         @OA\Schema(type="integer", default=50, maximum=100)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Детальная аналитика получена успешно",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="requests", type="object"),
+     *             @OA\Property(property="error_statistics", type="array", @OA\Items(type="object")),
+     *             @OA\Property(property="performance_statistics", type="object"),
+     *             @OA\Property(property="filters", type="object")
+     *         )
+     *     )
+     * )
+     */
     public function getDetailed(Request $request): JsonResponse
     {
         $startDate = $request->get('start_date', now()->subDays(30)->toDateString());
@@ -229,10 +421,10 @@ class AnalyticsController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/analytics",
+     *     path="/analytics/period",
      *     operationId="getAnalytics",
      *     tags={"Analytics"},
-     *     summary="Получить аналитику распознавания документов",
+     *     summary="Получить аналитику распознавания документов за период",
      *     description="Возвращает статистику по распознаванию документов за указанный период",
      *     security={{"sanctum": {}}},
      *     @OA\Parameter(

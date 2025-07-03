@@ -5,7 +5,7 @@
         "description": "API для распознавания документов через внешний сервис bescan.ru",
         "contact": {
             "name": "API Support",
-            "email": "support@example.com"
+            "email": "support@cargis.pro"
         },
         "license": {
             "name": "MIT",
@@ -15,8 +15,12 @@
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:8080/api/v1",
+            "url": "http://localhost:8080/api/v1",
             "description": "Local Development Server"
+        },
+        {
+            "url": "https://api.cargis.pro/api/v1",
+            "description": "Production Server"
         }
     ],
     "paths": {
@@ -25,7 +29,381 @@
                 "tags": [
                     "Analytics"
                 ],
-                "summary": "Получить аналитику распознавания документов",
+                "summary": "Получить общую статистику аналитики",
+                "description": "Возвращает общую статистику производительности и по типам документов",
+                "operationId": "getAnalyticsIndex",
+                "responses": {
+                    "200": {
+                        "description": "Статистика получена успешно",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "overall_stats": {
+                                            "type": "object"
+                                        },
+                                        "document_type_stats": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "last_updated": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/requests": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Получить список запросов с фильтрацией",
+                "description": "Возвращает пагинированный список запросов с возможностью фильтрации",
+                "operationId": "getAnalyticsRequests",
+                "parameters": [
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "description": "Начальная дата фильтрации",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "description": "Конечная дата фильтрации",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "document_type",
+                        "in": "query",
+                        "description": "Фильтр по типу документа",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PASSPORT",
+                                "PASSPORT_REG",
+                                "DLIC",
+                                "SNILS",
+                                "STS"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "success",
+                        "in": "query",
+                        "description": "Фильтр по успешности",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Количество записей на странице",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список запросов получен успешно",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/performance": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Получить статистику производительности",
+                "description": "Возвращает детальную статистику производительности за указанный период",
+                "operationId": "getAnalyticsPerformance",
+                "parameters": [
+                    {
+                        "name": "date_from",
+                        "in": "query",
+                        "description": "Начальная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "date_to",
+                        "in": "query",
+                        "description": "Конечная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Статистика производительности получена успешно",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "period": {
+                                            "type": "object"
+                                        },
+                                        "overall_performance": {
+                                            "type": "object"
+                                        },
+                                        "document_type_breakdown": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "recent_requests": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/summary": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Получить сводную статистику",
+                "description": "Возвращает сводную статистику с возможностью фильтрации",
+                "operationId": "getAnalyticsSummary",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Начальная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Конечная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "document_type",
+                        "in": "query",
+                        "description": "Фильтр по типу документа",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PASSPORT",
+                                "PASSPORT_REG",
+                                "DLIC",
+                                "SNILS",
+                                "STS"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "success",
+                        "in": "query",
+                        "description": "Фильтр по успешности",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Сводная статистика получена успешно",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "summary": {
+                                            "type": "object"
+                                        },
+                                        "document_types": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "recent_requests": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "period": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/detailed": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Получить детальную аналитику",
+                "description": "Возвращает детальную аналитику с пагинацией и статистикой ошибок",
+                "operationId": "getAnalyticsDetailed",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Начальная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Конечная дата периода",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "document_type",
+                        "in": "query",
+                        "description": "Фильтр по типу документа",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "PASSPORT",
+                                "PASSPORT_REG",
+                                "DLIC",
+                                "SNILS",
+                                "STS"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "success",
+                        "in": "query",
+                        "description": "Фильтр по успешности",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Количество записей на странице (максимум 100)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 50,
+                            "maximum": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Детальная аналитика получена успешно",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "requests": {
+                                            "type": "object"
+                                        },
+                                        "error_statistics": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "performance_statistics": {
+                                            "type": "object"
+                                        },
+                                        "filters": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/period": {
+            "get": {
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Получить аналитику распознавания документов за период",
                 "description": "Возвращает статистику по распознаванию документов за указанный период",
                 "operationId": "getAnalytics",
                 "parameters": [
@@ -460,42 +838,9 @@
                 "tags": [
                     "Health"
                 ],
-                "summary": "Проверка работоспособности сервиса",
-                "description": "Возвращает статус сервиса и текущее время.",
-                "operationId": "checkHealth",
-                "responses": {
-                    "200": {
-                        "description": "Сервис работает",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "ok"
-                                        },
-                                        "timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "example": "2024-06-23T12:00:00+00:00"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/health": {
-            "get": {
-                "tags": [
-                    "Health"
-                ],
                 "summary": "Check service health",
                 "description": "Returns the health status of the service including database, queue, redis, external API and storage checks",
-                "operationId": "f5dbd2c909f1ade119d7745ffdce126a",
+                "operationId": "checkHealth",
                 "responses": {
                     "200": {
                         "description": "Health check successful",
@@ -662,6 +1007,15 @@
             }
         }
     },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
     "tags": [
         {
             "name": "Analytics",
@@ -673,7 +1027,7 @@
         },
         {
             "name": "Health",
-            "description": "Health check endpoints"
+            "description": "Проверка состояния сервиса"
         }
     ]
 }

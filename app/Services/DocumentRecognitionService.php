@@ -68,7 +68,6 @@ class DocumentRecognitionService
                     'result_data' => ['error' => $apiResponse['error']]
                 ]);
 
-                // Создаем запись аналитики для ошибки
                 $this->analyticsService->createErrorRecord(
                     $data['document_id'],
                     $data['document_type'],

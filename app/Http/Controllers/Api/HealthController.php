@@ -17,7 +17,8 @@ class HealthController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/v1/health",
+     *     path="/health",
+     *     operationId="checkHealth",
      *     summary="Check service health",
      *     description="Returns the health status of the service including database, queue, redis, external API and storage checks",
      *     tags={"Health"},
