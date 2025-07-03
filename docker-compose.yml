@@ -6,9 +6,9 @@ services:
     container_name: ocr-app
     restart: unless-stopped
     depends_on:
-      db:
+      ocr-db:
         condition: service_healthy
-      redis:
+      ocr-redis:
         condition: service_healthy
     environment:
       - DB_HOST=${DB_HOST}
@@ -24,7 +24,7 @@ services:
     networks:
       - cargis-ocr
 
-  db:
+  ocr-db:
     image: mysql:8.0
     container_name: ocr-db
     restart: always
@@ -48,7 +48,7 @@ services:
     networks:
       - cargis-ocr
 
-  redis:
+  ocr-redis:
     image: redis:7-alpine
     container_name: ocr-redis
     restart: always
@@ -65,7 +65,7 @@ services:
     networks:
       - cargis-ocr
 
-  nginx:
+  ocr-nginx:
     image: nginx:stable-bookworm
     container_name: ocr-nginx
     depends_on:
@@ -74,7 +74,7 @@ services:
     ports:
       - ${NGINX_HTTP_PORT}:80
     volumes:
-      - ./app:/var/www
+      - ./app/public:/var/www/public
       - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - cargis-ocr
