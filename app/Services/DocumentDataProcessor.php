@@ -14,14 +14,41 @@ class DocumentDataProcessor
             'processing_time' => $data['processing_time'] ?? 0,
         ];
 
-        if (isset($data['result']) && is_array($data['result'])) {
-            $processedData['extracted_data'] = $this->extractDocumentData($data['result'], $documentType);
-            $processedData['confidence_score'] = $data['confidence_score'] ?? 0.0;
+        // Обрабатываем новый формат данных от API
+        if (isset($data['documents']) && is_array($data['documents']) && !empty($data['documents'])) {
+            $document = $data['documents'][0]; // Берем первый документ
+            $documentData = $document['data'] ?? [];
+            $metadata = $document['metadata'] ?? [];
+            
+            $processedData['extracted_data'] = $this->extractDocumentData($documentData, $documentType);
+            
+            // Вычисляем средний confidence score из metadata
+            if (isset($metadata['confidences']) && is_array($metadata['confidences'])) {
+                $confidences = array_values($metadata['confidences']);
+                $processedData['confidence_score'] = !empty($confidences) ? array_sum($confidences) / count($confidences) : 0.0;
+            }
+            
+            // Добавляем дополнительную информацию
+            $processedData['metadata'] = [
+                'verifications' => $metadata['verifications'] ?? [],
+                'external_integrations' => $metadata['external_integrations'] ?? [],
+                'broken_reasons' => $document['broken_reasons'] ?? [],
+                'broken_reasons_ru' => $document['broken_reasons_ru'] ?? [],
+            ];
         }
 
-        if (isset($data['errors']) && !empty($data['errors'])) {
-            $processedData['recognition_status'] = 'completed_with_errors';
-            $processedData['errors'] = $data['errors'];
+        // Проверяем на ошибки
+        if (isset($data['documents']) && is_array($data['documents'])) {
+            foreach ($data['documents'] as $document) {
+                if (!empty($document['broken_reasons']) || !empty($document['broken_reasons_ru'])) {
+                    $processedData['recognition_status'] = 'completed_with_errors';
+                    $processedData['errors'] = array_merge(
+                        $document['broken_reasons'] ?? [],
+                        $document['broken_reasons_ru'] ?? []
+                    );
+                    break;
+                }
+            }
         }
 
         return $processedData;
@@ -29,175 +56,99 @@ class DocumentDataProcessor
 
     private function extractDocumentData(array $result, string $documentType): array
     {
-        $extractedData = [];
-
-        switch ($documentType) {
-            case 'PASSPORT':
-            case 'PASSPORT_REG':
-                $extractedData = $this->extractPassportData($result);
-                break;
-            case 'DLIC':
-                $extractedData = $this->extractDriverLicenseData($result);
-                break;
-            case 'SNILS':
-                $extractedData = $this->extractSnilsData($result);
-                break;
-            case 'STS':
-                $extractedData = $this->extractVehicleRegistrationData($result);
-                break;
-            default:
-                $extractedData = $result;
-        }
-
-        return $extractedData;
+        return match ($documentType) {
+            'PASSPORT', 'PASSPORT_REG' => $this->extractPassportData($result),
+            'DLIC', 'DRIVER_LICENSE' => $this->extractDriverLicenseData($result),
+            'SNILS' => $this->extractSnilsData($result),
+            'STS', 'VEHICLE_REGISTRATION' => $this->extractVehicleRegistrationData($result),
+            default => $result,
+        };
     }
 
     private function extractPassportData(array $result): array
     {
         return [
-            'series' => $result['series'] ?? null,
-            'number' => $result['number'] ?? null,
-            'issued_by' => $result['issued_by'] ?? null,
-            'issue_date' => $result['issue_date'] ?? null,
-            'department_code' => $result['department_code'] ?? null,
-            'last_name' => $result['last_name'] ?? null,
-            'first_name' => $result['first_name'] ?? null,
-            'middle_name' => $result['middle_name'] ?? null,
-            'birth_date' => $result['birth_date'] ?? null,
-            'birth_place' => $result['birth_place'] ?? null,
-            'gender' => $result['gender'] ?? null,
-            'registration_address' => $result['registration_address'] ?? null,
+            'series' => $result['Series'] ?? null,
+            'number' => $result['Number'] ?? null,
+            'issued_by' => $result['IssuedBy'] ?? null,
+            'issue_date' => $result['IssueDate'] ?? null,
+            'department_code' => $result['IssueId'] ?? null,
+            'last_name' => $result['LastName'] ?? null,
+            'first_name' => $result['FirstName'] ?? null,
+            'middle_name' => $result['MiddleName'] ?? null,
+            'birth_date' => $result['BirthDate'] ?? null,
+            'birth_place' => $result['BirthPlace'] ?? null,
+            'gender' => $result['Gender'] ?? null,
+            'registration_address' => $result['Address'] ?? null,
+            'mrz1' => $result['MRZ1'] ?? null,
+            'mrz2' => $result['MRZ2'] ?? null,
+            'has_photo' => $result['HasPhoto'] ?? null,
+            'has_owner_signature' => $result['HasOwnerSignature'] ?? null,
         ];
     }
 
     private function extractDriverLicenseData(array $result): array
     {
         return [
-            'series' => $result['series'] ?? null,
-            'number' => $result['number'] ?? null,
-            'issued_by' => $result['issued_by'] ?? null,
-            'issue_date' => $result['issue_date'] ?? null,
-            'expiry_date' => $result['expiry_date'] ?? null,
-            'last_name' => $result['last_name'] ?? null,
-            'first_name' => $result['first_name'] ?? null,
-            'middle_name' => $result['middle_name'] ?? null,
-            'birth_date' => $result['birth_date'] ?? null,
-            'birth_place' => $result['birth_place'] ?? null,
-            'categories' => $result['categories'] ?? [],
-            'photo' => $result['photo'] ?? null,
+            'series' => $result['Series'] ?? null,
+            'number' => $result['Number'] ?? null,
+            'issued_by' => $result['IssuedBy'] ?? null,
+            'issue_date' => $result['IssueDate'] ?? null,
+            'expiry_date' => $result['ExpiryDate'] ?? null,
+            'last_name' => $result['LastName'] ?? null,
+            'first_name' => $result['FirstName'] ?? null,
+            'middle_name' => $result['MiddleName'] ?? null,
+            'birth_date' => $result['BirthDate'] ?? null,
+            'birth_place' => $result['BirthPlace'] ?? null,
+            'gender' => $result['Gender'] ?? null,
+            'categories' => $result['Categories'] ?? [],
+            'photo' => $result['Photo'] ?? null,
+            'mrz1' => $result['MRZ1'] ?? null,
+            'mrz2' => $result['MRZ2'] ?? null,
+            'mrz3' => $result['MRZ3'] ?? null,
         ];
     }
 
     private function extractSnilsData(array $result): array
     {
         return [
-            'number' => $result['number'] ?? null,
-            'last_name' => $result['last_name'] ?? null,
-            'first_name' => $result['first_name'] ?? null,
-            'middle_name' => $result['middle_name'] ?? null,
-            'birth_date' => $result['birth_date'] ?? null,
-            'gender' => $result['gender'] ?? null,
-            'issue_date' => $result['issue_date'] ?? null,
+            'number' => $result['Number'] ?? null,
+            'last_name' => $result['LastName'] ?? null,
+            'first_name' => $result['FirstName'] ?? null,
+            'middle_name' => $result['MiddleName'] ?? null,
+            'birth_date' => $result['BirthDate'] ?? null,
+            'gender' => $result['Gender'] ?? null,
+            'issue_date' => $result['IssueDate'] ?? null,
+            'issued_by' => $result['IssuedBy'] ?? null,
+            'registration_date' => $result['RegistrationDate'] ?? null,
         ];
     }
 
     private function extractVehicleRegistrationData(array $result): array
     {
         return [
-            'series' => $result['series'] ?? null,
-            'number' => $result['number'] ?? null,
-            'issued_by' => $result['issued_by'] ?? null,
-            'issue_date' => $result['issue_date'] ?? null,
-            'vehicle_make' => $result['vehicle_make'] ?? null,
-            'vehicle_model' => $result['vehicle_model'] ?? null,
-            'year_of_manufacture' => $result['year_of_manufacture'] ?? null,
-            'vin' => $result['vin'] ?? null,
-            'engine_number' => $result['engine_number'] ?? null,
-            'chassis_number' => $result['chassis_number'] ?? null,
-            'body_number' => $result['body_number'] ?? null,
-            'color' => $result['color'] ?? null,
-            'engine_power' => $result['engine_power'] ?? null,
-            'engine_displacement' => $result['engine_displacement'] ?? null,
-            'fuel_type' => $result['fuel_type'] ?? null,
-            'owner_name' => $result['owner_name'] ?? null,
-            'owner_address' => $result['owner_address'] ?? null,
+            'series' => $result['Series'] ?? null,
+            'number' => $result['Number'] ?? null,
+            'issued_by' => $result['IssuedBy'] ?? null,
+            'issue_date' => $result['IssueDate'] ?? null,
+            'vehicle_make' => $result['VehicleMake'] ?? null,
+            'vehicle_model' => $result['VehicleModel'] ?? null,
+            'year_of_manufacture' => $result['YearOfManufacture'] ?? null,
+            'vin' => $result['VIN'] ?? null,
+            'engine_number' => $result['EngineNumber'] ?? null,
+            'chassis_number' => $result['ChassisNumber'] ?? null,
+            'body_number' => $result['BodyNumber'] ?? null,
+            'color' => $result['Color'] ?? null,
+            'engine_power' => $result['EnginePower'] ?? null,
+            'engine_displacement' => $result['EngineDisplacement'] ?? null,
+            'fuel_type' => $result['FuelType'] ?? null,
+            'owner_name' => $result['OwnerName'] ?? null,
+            'owner_address' => $result['OwnerAddress'] ?? null,
+            'registration_date' => $result['RegistrationDate'] ?? null,
+            'expiry_date' => $result['ExpiryDate'] ?? null,
+            'vehicle_type' => $result['VehicleType'] ?? null,
+            'weight' => $result['Weight'] ?? null,
+            'max_weight' => $result['MaxWeight'] ?? null,
         ];
     }
-
-    private function extractConfidences(array $rawData): array
-    {
-        $confidences = [];
-        
-        if (isset($rawData['confidences']) && is_array($rawData['confidences'])) {
-            foreach ($rawData['confidences'] as $field => $confidence) {
-                $confidences[$field] = is_numeric($confidence) ? (float) $confidence : 0.0;
-            }
-        }
-        
-        if (isset($rawData['confidence']) && is_array($rawData['confidence'])) {
-            foreach ($rawData['confidence'] as $field => $confidence) {
-                $confidences[$field] = is_numeric($confidence) ? (float) $confidence : 0.0;
-            }
-        }
-
-        return $confidences;
-    }
-
-    private function extractVerifications(array $rawData): array
-    {
-        $verifications = [];
-        
-        if (isset($rawData['verifications']) && is_array($rawData['verifications'])) {
-            foreach ($rawData['verifications'] as $field => $verification) {
-                $verifications[$field] = [
-                    'valid' => $verification['valid'] ?? false,
-                    'message' => $verification['message'] ?? null,
-                    'source' => $verification['source'] ?? null,
-                ];
-            }
-        }
-        
-        if (isset($rawData['verification']) && is_array($rawData['verification'])) {
-            foreach ($rawData['verification'] as $field => $verification) {
-                $verifications[$field] = [
-                    'valid' => $verification['valid'] ?? false,
-                    'message' => $verification['message'] ?? null,
-                    'source' => $verification['source'] ?? null,
-                ];
-            }
-        }
-
-        return $verifications;
-    }
-
-    public function validateRequiredFields(array $data, string $documentType): array
-    {
-        $requiredFields = $this->getRequiredFields($documentType);
-        $missingFields = [];
-
-        foreach ($requiredFields as $field) {
-            if (empty($data[$field])) {
-                $missingFields[] = $field;
-            }
-        }
-
-        return $missingFields;
-    }
-
-    private function getRequiredFields(string $documentType): array
-    {
-        switch ($documentType) {
-            case 'PASSPORT':
-            case 'PASSPORT_REG':
-                return ['Series', 'Number', 'LastName', 'FirstName', 'BirthDate'];
-            case 'SNILS':
-                return ['Number', 'Lastname', 'Firstname', 'BirthDate'];
-            case 'DLIC':
-                return ['Series', 'Number', 'LastName', 'FirstName', 'BirthDate'];
-            case 'STS':
-                return ['reg_number', 'vin', 'brand_rus', 'model_rus'];
-            default:
-                return [];
-        }
-    }
-} 
+}

@@ -16,8 +16,11 @@ RUN apt-get update \
         libpq-dev \
         nodejs \
         npm \
+        libhiredis-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

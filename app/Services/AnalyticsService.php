@@ -15,7 +15,7 @@ class AnalyticsService
     {
         try {
             RecognitionAnalytics::createFromTask($task, $statusCode);
-            
+
             Log::info('Analytics record created', [
                 'task_id' => $task->id,
                 'document_type' => $task->document_type,
@@ -49,7 +49,7 @@ class AnalyticsService
                     'error_type' => 'processing_error',
                 ],
             ]);
-            
+
             Log::info('Error analytics record created', [
                 'document_id' => $documentId,
                 'document_type' => $documentType,
@@ -118,18 +118,72 @@ class AnalyticsService
     }
 
     /**
+     * Получает аналитику за указанный период
+     */
+    public function getAnalytics(string $startDate, string $endDate, ?string $documentType = null): array
+    {
+        $query = RecognitionAnalytics::whereBetween('request_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+
+        if ($documentType) {
+            $query->where('document_type', $documentType);
+        }
+
+        $analytics = $query->get();
+
+        $totalRequests = $analytics->count();
+        $successfulRequests = $analytics->where('recognition_success', true)->count();
+        $failedRequests = $analytics->where('recognition_success', false)->count();
+        $averageProcessingTime = $analytics->where('recognition_success', true)->avg('processing_time_ms') ?? 0;
+
+        $requestsByType = $analytics->groupBy('document_type')
+            ->map(function ($group) {
+                return $group->count();
+            });
+
+        $requestsByStatus = [
+            'completed' => $successfulRequests,
+            'failed' => $failedRequests,
+        ];
+
+        $dailyStats = $analytics->groupBy(function ($item) {
+            return $item->request_date->format('Y-m-d');
+        })->map(function ($group) {
+            return [
+                'total' => $group->count(),
+                'successful' => $group->where('recognition_success', true)->count(),
+                'failed' => $group->where('recognition_success', false)->count(),
+            ];
+        });
+
+        return [
+            'total_requests' => $totalRequests,
+            'successful_requests' => $successfulRequests,
+            'failed_requests' => $failedRequests,
+            'success_rate' => $totalRequests > 0 ? round(($successfulRequests / $totalRequests) * 100, 2) : 0,
+            'average_processing_time' => round($averageProcessingTime / 1000, 2), // конвертируем в секунды
+            'requests_by_type' => $requestsByType,
+            'requests_by_status' => $requestsByStatus,
+            'daily_stats' => $dailyStats,
+            'period' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ],
+        ];
+    }
+
+    /**
      * Очищает старые записи аналитики (старше 3 месяцев)
      */
     public function cleanupOldRecords(): int
     {
         $cutoffDate = now()->subMonths(3);
         $deletedCount = RecognitionAnalytics::where('request_date', '<', $cutoffDate)->delete();
-        
+
         Log::info('Cleaned up old analytics records', [
             'deleted_count' => $deletedCount,
             'cutoff_date' => $cutoffDate->toISOString(),
         ]);
-        
+
         return $deletedCount;
     }
-} 
+}

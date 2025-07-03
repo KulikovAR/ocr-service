@@ -7,12 +7,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darkaonline/l5-swagger": "^9.0",
+        "graylog2/gelf-php": "^1.7",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
-        "tightenco/ziggy": "^2.0",
-        "graylog2/gelf-php": "^1.7"
+        "tightenco/ziggy": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -78,4 +79,3 @@
     "minimum-stability": "stable",
     "prefer-stable": true
 }
-

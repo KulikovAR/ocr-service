@@ -44,7 +44,10 @@ return [
 
     'bescan' => [
         'base_url' => env('BESCAN_BASE_URL', 'https://api.bescan.ru'),
-        'api_key' => env('BESCAN_API_KEY'),
+        'api_key' => env('BESCAN_API_KEY', ''),
+        'token' => env('BESCAN_TOKEN', ''),
+        'machine_uid' => env('BESCAN_MACHINE_UID', ''),
+        'project_id' => env('BESCAN_PROJECT_ID', 'DEMO'),
     ],
 
 ];

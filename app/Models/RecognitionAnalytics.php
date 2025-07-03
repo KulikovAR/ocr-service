@@ -85,10 +85,10 @@ class RecognitionAnalytics extends Model
     public static function createFromTask($task, $statusCode = 200)
     {
         $resultData = $task->result_data ?? [];
-        
+
         $maxConfidence = null;
         $minConfidence = null;
-        
+
         if (isset($resultData['confidences']) && is_array($resultData['confidences'])) {
             $confidences = array_filter($resultData['confidences'], 'is_numeric');
             if (!empty($confidences)) {
@@ -96,30 +96,30 @@ class RecognitionAnalytics extends Model
                 $minConfidence = min($confidences);
             }
         }
-        
+
         $recognitionSuccess = $task->status === 'completed';
-        
+
         $errorText = null;
         if ($task->status === 'failed' && isset($resultData['error'])) {
             $errorText = $resultData['error'];
         }
-        
+
         $processingTime = null;
         if ($task->created_at && $task->updated_at) {
             $processingTime = $task->created_at->diffInMilliseconds($task->updated_at);
         }
-        
+
         return self::create([
             'document_id' => $task->metadata['document_id'] ?? $task->id,
             'request_date' => $task->created_at,
             'status_code' => $statusCode,
             'document_type' => $task->document_type,
-            'max_confidence' => $maxConfidence,
-            'min_confidence' => $minConfidence,
-            'recognition_success' => $recognitionSuccess,
-            'error_text' => $errorText,
-            'processing_time_ms' => $processingTime,
-            'metadata' => $task->metadata,
+//            'max_confidence' => $maxConfidence,
+//            'min_confidence' => $minConfidence,
+//            'recognition_success' => $recognitionSuccess,
+//            'error_text' => $errorText,
+//            'processing_time_ms' => $processingTime,
+//            'metadata' => $task->metadata,
         ]);
     }
 
@@ -146,7 +146,7 @@ class RecognitionAnalytics extends Model
     public static function getDocumentTypeStats($startDate = null, $endDate = null)
     {
         $query = static::query();
-        
+
         if ($startDate && $endDate) {
             $query->byDateRange($startDate, $endDate);
         }
@@ -169,7 +169,7 @@ class RecognitionAnalytics extends Model
     public static function getPerformanceStats($startDate = null, $endDate = null)
     {
         $query = static::query();
-        
+
         if ($startDate && $endDate) {
             $query->byDateRange($startDate, $endDate);
         }
@@ -185,4 +185,4 @@ class RecognitionAnalytics extends Model
         ')
         ->first();
     }
-} 
+}

@@ -22,6 +22,8 @@ return new class extends Migration
 
             $table->index(['document_type', 'created_at']);
             $table->index(['status_code', 'created_at']);
+
+            $table->softDeletes();
         });
     }
 
@@ -32,4 +34,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('recognition_analytics');
     }
-}; 
+};
