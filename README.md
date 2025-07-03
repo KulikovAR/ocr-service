@@ -57,22 +57,31 @@ LOG_CHANNEL=production
 ### 3. Запуск сервисов
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 4. Установка зависимостей и миграции
 
 ```bash
-docker compose exec app composer install --no-dev --optimize-autoloader
+docker compose exec ocr-app composer install --no-dev --optimize-autoloader
 
-docker compose exec app php artisan key:generate
+docker compose exec ocr-app php artisan key:generate
 
 # Запуск миграций
-docker compose exec app php artisan migrate
+docker compose exec ocr-app php artisan migrate
+
+# Сборка
+docker compose exec ocr-app npm install
+docker compose exec ocr-app npm run build
+
+# Дать права на запись
+docker compose exec -it ocr-app bash
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R ug+rwX storage bootstrap/cache
 
 # Очистка кэша
-docker compose exec app php artisan config:clear
-docker compose exec app php artisan route:clear
+docker compose exec ocr-app php artisan config:clear
+docker compose exec ocr-app php artisan route:clear
 ```
 
 ### 5. Проверка работоспособности
@@ -297,8 +306,8 @@ curl http://localhost/api/v1/health
 ### Очистка старых данных
 ```bash
 # Просмотр что будет удалено
-docker compose exec app php artisan analytics:cleanup --dry-run
+docker compose exec ocr-app php artisan analytics:cleanup --dry-run
 
 # Удаление записей старше 3 месяцев
-docker compose exec app php artisan analytics:cleanup
+docker compose exec ocr-app php artisan analytics:cleanup
 ```
