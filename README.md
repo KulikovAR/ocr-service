@@ -19,7 +19,7 @@
 
 ```bash
 git clone <repository-url>
-cd osr-service
+cd ocr-service
 ```
 
 ### 2. Настройка окружения
@@ -47,7 +47,7 @@ GRAYLOG_SOURCE=ocr-service
 # Kafka
 KAFKA_ENABLED=true
 KAFKA_BROKERS=localhost:9092
-KAFKA_CLIENT_ID=osr-service
+KAFKA_CLIENT_ID=ocr-service
 KAFKA_TOPIC=document-recognition-results
 
 # Логирование

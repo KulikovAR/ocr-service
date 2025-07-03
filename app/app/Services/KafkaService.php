@@ -21,7 +21,7 @@ class KafkaService
         if ($this->enabled) {
             $conf = new Conf();
             $conf->set('metadata.broker.list', config('kafka.brokers', 'localhost:9092'));
-            $conf->set('client.id', config('kafka.client_id', 'osr-service'));
+            $conf->set('client.id', config('kafka.client_id', 'ocr-service'));
             
             $this->producer = new Producer($conf);
         }
@@ -77,7 +77,7 @@ class KafkaService
             'metadata' => $taskData['metadata'],
             'result' => $resultData,
             'timestamp' => now()->toISOString(),
-            'source' => 'osr-service'
+            'source' => 'ocr-service'
         ];
 
         return $this->sendMessage($message);
