@@ -25,11 +25,11 @@ services:
     networks:
       - cargis-ocr
 
-  ocr-queue:
+  ocr-app-queue:
     build:
       context: ./app
       dockerfile: ../docker/php/Dockerfile
-    container_name: ocr-queue
+    container_name: ocr-app-queue
     restart: unless-stopped
     depends_on:
       - ocr-app
