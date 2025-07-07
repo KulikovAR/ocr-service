@@ -27,7 +27,8 @@ deploy:
       # Миграции laravel
     - ssh ${OCR_USER}@${OCR_HOST} -p 22 "
       cd ${OCR_REMOTE_PATH} &&
-      docker compose -f docker-compose.yml down
+      ls -agl &&
+      docker compose -f docker-compose.yml down &&
       git checkout main &&
       git pull &&
       docker compose -f docker-compose.yml up -d --build --remove-orphans &&
