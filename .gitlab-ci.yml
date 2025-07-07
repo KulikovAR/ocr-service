@@ -3,7 +3,7 @@ image: docker:28.3
 stages:
   - deploy
 
-deploy_prod:
+deploy:
   stage: deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -17,17 +17,17 @@ deploy_prod:
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   script:
     - echo Deploying...
-    # Выполняем на удаленном хосте силами контейнера
+    # Выполняем на удаленном хосте силами контейнера:
+      # Остановили проект
+      # Получаем данные git
+      # Запускаем проект
+      # Миграции laravel
     - ssh ${OCR_USER}@${OCR_HOST} -p 22 "
       cd ${OCR_REMOTE_PATH} &&
-      # Остановили проект
       docker compose -f docker-compose.yml down
-      # Получаем новые данные из git
       git checkout main &&
       git pull &&
-      # Запускаем проект
       docker compose -f docker-compose.yml up -d --build --remove-orphans &&
-      # Миграции laravel после запуска
       docker compose exec app composer install &&
       docker compose exec app composer update &&
       docker compose exec app php artisan migrate --force
