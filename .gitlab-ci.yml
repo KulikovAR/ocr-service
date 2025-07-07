@@ -8,13 +8,16 @@ deploy:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   before_script:
-    # Настройка SSH подключения
     - echo "Configuring SSH access..."
-    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - apt-get update -y && apt-get install -y openssh-client
     - eval $(ssh-agent -s)
-    - echo "${OCR_SSH_PRIVATE_KEY}" | ssh-add -
+    - echo "$OCR_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
-    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H "$OCR_HOST" >> ~/.ssh/known_hosts
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+    - chmod 600 ~/.ssh/config
+    - ssh-add -l
   script:
     - echo Deploying...
     # Выполняем на удаленном хосте силами контейнера:
