@@ -1,0 +1,29 @@
+image: docker:28.3
+
+stages:
+  - deploy
+
+deploy_prod:
+  stage: deploy_prod
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  before_script:
+    # Настройка SSH подключения
+    - echo "Configuring SSH access..."
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - echo "${OCR_SSH_PRIVATE_KEY}" | ssh-add -
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - echo Deploying...
+    - ssh ${OCR_USER}@${OCR_HOST} -p 22 "
+      cd ${OCR_REMOTE_PATH} &&
+      docker compose -f docker-compose.yml down
+      git checkout main &&
+      git pull &&
+      docker compose -f docker-compose.yml up -d --build --remove-orphans &&
+      docker compose exec app composer install &&
+      docker compose exec app composer update &&
+      docker compose exec app php artisan migrate --force
+      "
