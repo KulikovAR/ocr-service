@@ -32,7 +32,7 @@ deploy:
       git checkout main &&
       git pull &&
       docker compose -f docker-compose.yml up -d --build --remove-orphans &&
-      docker compose exec app composer install &&
-      docker compose exec app composer update &&
-      docker compose exec app php artisan migrate --force
+      docker compose exec -T ocr-app composer install &&
+      docker compose exec -T ocr-app composer update &&
+      docker compose exec -T ocr-app php artisan migrate --force
       "
