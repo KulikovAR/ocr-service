@@ -11,16 +11,19 @@ class DocumentRecognitionService
     protected ExternalApiClient $apiClient;
     protected DocumentDataProcessor $dataProcessor;
     protected AnalyticsService $analyticsService;
+    protected PusherNotificationService $pusherService;
 
     public function __construct(
         ExternalApiClient     $apiClient,
         DocumentDataProcessor $dataProcessor,
-        AnalyticsService      $analyticsService
+        AnalyticsService      $analyticsService,
+        PusherNotificationService $pusherService
     )
     {
         $this->apiClient = $apiClient;
         $this->dataProcessor = $dataProcessor;
         $this->analyticsService = $analyticsService;
+        $this->pusherService = $pusherService;
     }
 
 
@@ -112,6 +115,13 @@ class DocumentRecognitionService
 
             $this->analyticsService->createAnalyticsRecord($task, 408);
 
+            // Отправляем уведомление об ошибке
+            $documentId = $task->metadata['document_id'] ?? $task->id;
+            $this->pusherService->sendRecognitionFailedNotification(
+                $documentId,
+                'Max attempts exceeded'
+            );
+
             return;
         }
 
@@ -133,6 +143,13 @@ class DocumentRecognitionService
                 $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
 
                 $this->analyticsService->createAnalyticsRecord($task, 408);
+
+                // Отправляем уведомление об ошибке
+                $documentId = $task->metadata['document_id'] ?? $task->id;
+                $this->pusherService->sendRecognitionFailedNotification(
+                    $documentId,
+                    'Recognition timeout after max attempts'
+                );
             }
             return;
         }
@@ -149,6 +166,13 @@ class DocumentRecognitionService
             ]);
 
             $this->analyticsService->createAnalyticsRecord($task, 200);
+
+            // Отправляем уведомление о завершении распознавания
+            $documentId = $task->metadata['document_id'] ?? $task->id;
+            $this->pusherService->sendRecognitionCompletedNotification(
+                $documentId,
+                $processedData['extracted_data'] ?? []
+            );
         } else {
             $task->update([
                 'status' => DocumentRecognitionTask::STATUS_FAILED,
@@ -156,6 +180,13 @@ class DocumentRecognitionService
             ]);
 
             $this->analyticsService->createAnalyticsRecord($task, 500);
+
+            // Отправляем уведомление об ошибке
+            $documentId = $task->metadata['document_id'] ?? $task->id;
+            $this->pusherService->sendRecognitionFailedNotification(
+                $documentId,
+                $apiResponse['error']
+            );
         }
     }
 

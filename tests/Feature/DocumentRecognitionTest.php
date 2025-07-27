@@ -8,6 +8,7 @@ use App\Services\DocumentRecognitionService;
 use App\Services\ExternalApiClient;
 use App\Services\DocumentDataProcessor;
 use App\Services\AnalyticsService;
+use App\Services\PusherNotificationService;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -162,6 +163,11 @@ class DocumentRecognitionTest extends TestCase
             ]
         ]);
 
+        // Мокаем DocumentRecognitionService чтобы не вызывать checkTaskStatus
+        $this->mock(DocumentRecognitionService::class, function ($mock) {
+            $mock->shouldReceive('checkTaskStatus')->never();
+        });
+
         $response = $this->getJson("/api/v1/status/{$task->id}");
 
         $response->assertStatus(200)
@@ -253,7 +259,8 @@ class DocumentRecognitionTest extends TestCase
         $apiClient = app(ExternalApiClient::class);
         $dataProcessor = app(DocumentDataProcessor::class);
         $analyticsService = app(AnalyticsService::class);
-        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService);
+        $pusherService = app(PusherNotificationService::class);
+        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService, $pusherService);
         // Подменяем protected метод scheduleStatusCheck через Closure::bind
         $closure = function (
             \App\Models\DocumentRecognitionTask $task
@@ -311,5 +318,51 @@ class DocumentRecognitionTest extends TestCase
                 $this->assertNotEquals(422, $response->status(), "Document type {$docType} should be valid");
             }
         }
+    }
+
+    public function test_sends_pusher_notification_on_completion(): void
+    {
+        $task = DocumentRecognitionTask::create([
+            'external_task_id' => 's-12345',
+            'status' => 'processing',
+            'document_type' => 'PASSPORT',
+            'metadata' => ['document_id' => 'doc_123']
+        ]);
+
+        $this->mock(ExternalApiClient::class, function ($mock) {
+            $mock->shouldReceive('getRecognitionResult')
+                ->once()
+                ->with('s-12345')
+                ->andReturn([
+                    'success' => true,
+                    'data' => [
+                        'documents' => [
+                            [
+                                'data' => [
+                                    'Series' => '1234',
+                                    'Number' => '567890',
+                                    'LastName' => 'Иванов',
+                                    'FirstName' => 'Иван'
+                                ],
+                                'metadata' => [
+                                    'confidences' => [0.95, 0.98],
+                                    'verifications' => [
+                                        'Series' => ['valid' => true]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]);
+        });
+
+        $this->mock(PusherNotificationService::class, function ($mock) {
+            $mock->shouldReceive('sendRecognitionCompletedNotification')
+                ->once()
+                ->with('doc_123', \Mockery::type('array'));
+        });
+
+        $service = app(DocumentRecognitionService::class);
+        $service->checkTaskStatus($task);
     }
 }
