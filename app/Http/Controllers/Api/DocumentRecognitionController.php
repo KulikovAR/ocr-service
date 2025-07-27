@@ -17,7 +17,6 @@ class DocumentRecognitionController extends Controller
     {
         $this->recognitionService = $recognitionService;
     }
-
     /**
      * @OA\Post(
      *     path="/recognize",
@@ -64,6 +63,7 @@ class DocumentRecognitionController extends Controller
      *     )
      * )
      */
+
     public function recognize(ProcessDocumentRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -155,10 +155,8 @@ class DocumentRecognitionController extends Controller
             ], 404);
         }
 
-        // Если задача еще не завершена, проверяем статус в beorg.ru
-        if ($task->status === DocumentRecognitionTask::STATUS_PENDING || $task->status === DocumentRecognitionTask::STATUS_PROCESSING) {
+        if ($task->status !== DocumentRecognitionTask::STATUS_COMPLETED) {
             $this->recognitionService->checkTaskStatus($task);
-            // Обновляем задачу после проверки
             $task->refresh();
         }
 
@@ -178,6 +176,4 @@ class DocumentRecognitionController extends Controller
 
         return response()->json($response);
     }
-
-
 }

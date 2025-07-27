@@ -277,7 +277,7 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'processing',
-            'callback_url' => 'https://example.com/webhook',
+
             'document_type' => 'PASSPORT',
             'attempts_count' => 0
         ]);
