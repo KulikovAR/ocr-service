@@ -12,9 +12,9 @@ class PusherNotificationService
     public function __construct()
     {
         $this->pusher = new Pusher(
-            config('broadcasting.connections.pusher.key') ?? "73bcd4a12fe7960bd9da",
-            config('broadcasting.connections.pusher.secret') ?? "1411e15fd0eb55e7eced",
-            config('broadcasting.connections.pusher.app_id') ?? "1422160",
+            config('broadcasting.connections.pusher.key', '73bcd4a12fe7960bd9da') ?? "73bcd4a12fe7960bd9da",
+            config('broadcasting.connections.pusher.secret', '1411e15fd0eb55e7eced') ?? "1411e15fd0eb55e7eced",
+            config('broadcasting.connections.pusher.app_id', '1422160') ?? "1422160",
             config('broadcasting.connections.pusher.options', ['cluster' => 'eu'])
         );
     }
