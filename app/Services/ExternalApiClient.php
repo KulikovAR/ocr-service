@@ -88,9 +88,13 @@ class ExternalApiClient
         try {
             Log::info('Checking recognition status', ['external_task_id' => $externalTaskId]);
 
-            $response = Http::timeout(30)->get($this->baseUrl . '/api/document/result/' . $externalTaskId,
-                [
-                    'token' => $this->token
+            $response = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                ])
+                ->get($this->baseUrl . '/api/document/result/' . $externalTaskId, [
+                    'token' => $this->token,
+                    'machine_uid' => $this->machineUid,
+                    'project_id' => $this->projectId,
                 ]);
 
             if ($response->successful()) {

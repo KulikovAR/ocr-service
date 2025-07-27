@@ -8,7 +8,7 @@ use App\Services\DocumentRecognitionService;
 use App\Services\ExternalApiClient;
 use App\Services\DocumentDataProcessor;
 use App\Services\AnalyticsService;
-use App\Services\KafkaService;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class DocumentRecognitionTest extends TestCase
@@ -22,12 +22,6 @@ class DocumentRecognitionTest extends TestCase
         parent::setUp();
         
         $this->validBase64Image = base64_encode(str_repeat('A', 15000));
-        
-        // Мокаем KafkaService чтобы не мешал в тестах
-        $this->mock(KafkaService::class, function ($mock) {
-            $mock->shouldReceive('sendMessage')->andReturn(true);
-            $mock->shouldReceive('sendRecognitionResult')->andReturn(true);
-        });
     }
 
     public function test_can_process_document(): void
@@ -46,8 +40,7 @@ class DocumentRecognitionTest extends TestCase
         $payload = [
             'document_id' => 'doc_123',
             'document_type' => 'PASSPORT',
-            'images' => [$this->validBase64Image, $this->validBase64Image],
-            'callback_url' => 'https://example.com/webhook'
+            'images' => [$this->validBase64Image, $this->validBase64Image]
         ];
 
         $response = $this->postJson('/api/v1/recognize', $payload);
@@ -64,14 +57,13 @@ class DocumentRecognitionTest extends TestCase
         $payload = [
             'document_id' => 'doc_123',
             'document_type' => 'INVALID_TYPE',
-            'images' => ['invalid_file'],
-            'callback_url' => 'not-a-url'
+            'images' => ['invalid_file']
         ];
 
         $response = $this->postJson('/api/v1/recognize', $payload);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['document_type', 'images.0', 'callback_url']);
+            ->assertJsonValidationErrors(['document_type', 'images.0']);
     }
 
     public function test_can_get_task_status(): void
@@ -79,17 +71,20 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'processing',
-            'callback_url' => 'https://example.com/webhook',
             'document_type' => 'PASSPORT',
-            'metadata' => ['user_id' => 123]
+            'metadata' => ['user_id' => 123, 'document_id' => 'doc_123']
         ]);
+
+        // Мокаем проверку статуса
+        $this->mock(DocumentRecognitionService::class, function ($mock) {
+            $mock->shouldReceive('checkTaskStatus')->once();
+        });
 
         $response = $this->getJson("/api/v1/status/{$task->id}");
 
         $response->assertStatus(200)
             ->assertJson([
-                'task_id' => $task->id,
-                'document_id' => $task->id,
+                'document_id' => 'doc_123',
                 'status' => 'processing',
                 'document_type' => 'PASSPORT'
             ]);
@@ -111,21 +106,23 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'completed',
-            'callback_url' => 'https://example.com/webhook',
             'document_type' => 'PASSPORT',
+            'metadata' => ['document_id' => 'doc_123'],
             'result_data' => [
-                'data' => [
-                    'Series' => '1234',
-                    'Number' => '567890',
-                    'LastName' => 'Иванов',
-                    'FirstName' => 'Иван'
+                'extracted_data' => [
+                    'series' => '1234',
+                    'number' => '567890',
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван'
                 ],
-                'confidences' => [
-                    'Series' => 0.95,
-                    'Number' => 0.98
+                'confidence_score' => [
+                    'series' => 0.95,
+                    'number' => 0.98
                 ],
-                'verifications' => [
-                    'Series' => ['valid' => true, 'message' => 'Valid']
+                'metadata' => [
+                    'verifications' => [
+                        'series' => ['valid' => true, 'message' => 'Valid']
+                    ]
                 ]
             ]
         ]);
@@ -134,22 +131,21 @@ class DocumentRecognitionTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'task_id' => $task->id,
-                'document_id' => $task->id,
+                'document_id' => 'doc_123',
                 'status' => 'completed',
                 'document_type' => 'PASSPORT',
                 'data' => [
-                    'Series' => '1234',
-                    'Number' => '567890',
-                    'LastName' => 'Иванов',
-                    'FirstName' => 'Иван'
+                    'series' => '1234',
+                    'number' => '567890',
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван'
                 ],
                 'confidences' => [
-                    'Series' => 0.95,
-                    'Number' => 0.98
+                    'series' => 0.95,
+                    'number' => 0.98
                 ],
                 'verifications' => [
-                    'Series' => ['valid' => true, 'message' => 'Valid']
+                    'series' => ['valid' => true, 'message' => 'Valid']
                 ]
             ]);
     }
@@ -159,8 +155,8 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'failed',
-            'callback_url' => 'https://example.com/webhook',
             'document_type' => 'PASSPORT',
+            'metadata' => ['document_id' => 'doc_123'],
             'result_data' => [
                 'error' => 'Document processing failed'
             ]
@@ -170,8 +166,7 @@ class DocumentRecognitionTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'task_id' => $task->id,
-                'document_id' => $task->id,
+                'document_id' => 'doc_123',
                 'status' => 'failed',
                 'document_type' => 'PASSPORT',
                 'error' => 'Document processing failed'
@@ -183,10 +178,10 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'completed',
-            'callback_url' => 'https://example.com/webhook',
             'document_type' => 'PASSPORT',
+            'metadata' => ['document_id' => 'doc_123'],
             'result_data' => [
-                'data' => [
+                'extracted_data' => [
                     'Series' => '1234',
                     'Number' => '567890'
                 ]
@@ -197,8 +192,7 @@ class DocumentRecognitionTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'task_id' => $task->id,
-                'document_id' => $task->id,
+                'document_id' => 'doc_123',
                 'status' => 'completed',
                 'document_type' => 'PASSPORT'
             ]);
@@ -209,7 +203,6 @@ class DocumentRecognitionTest extends TestCase
         $task = DocumentRecognitionTask::create([
             'external_task_id' => 's-12345',
             'status' => 'processing',
-            'callback_url' => 'https://example.com/webhook',
             'document_type' => 'PASSPORT',
             'metadata' => ['user_id' => 123]
         ]);
@@ -260,8 +253,7 @@ class DocumentRecognitionTest extends TestCase
         $apiClient = app(ExternalApiClient::class);
         $dataProcessor = app(DocumentDataProcessor::class);
         $analyticsService = app(AnalyticsService::class);
-        $kafkaService = app(KafkaService::class);
-        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService, $kafkaService);
+        $service = new DocumentRecognitionService($apiClient, $dataProcessor, $analyticsService);
         // Подменяем protected метод scheduleStatusCheck через Closure::bind
         $closure = function (
             \App\Models\DocumentRecognitionTask $task

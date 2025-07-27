@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Jobs\CheckRecognitionStatusJob;
 use App\Models\DocumentRecognitionTask;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class DocumentRecognitionService
@@ -12,20 +11,19 @@ class DocumentRecognitionService
     protected ExternalApiClient $apiClient;
     protected DocumentDataProcessor $dataProcessor;
     protected AnalyticsService $analyticsService;
-    protected KafkaService $kafkaService;
 
     public function __construct(
         ExternalApiClient     $apiClient,
         DocumentDataProcessor $dataProcessor,
-        AnalyticsService      $analyticsService,
-        KafkaService          $kafkaService
+        AnalyticsService      $analyticsService
     )
     {
         $this->apiClient = $apiClient;
         $this->dataProcessor = $dataProcessor;
         $this->analyticsService = $analyticsService;
-        $this->kafkaService = $kafkaService;
     }
+
+
 
     /**
      * Создает задачу распознавания документа
@@ -35,7 +33,6 @@ class DocumentRecognitionService
         try {
             $task = DocumentRecognitionTask::create([
                 'status' => DocumentRecognitionTask::STATUS_PENDING,
-                'callback_url' => $data['callback_url'] ?? null,
                 'metadata' => [
                     'document_id' => $data['document_id'],
                     'document_type' => $data['document_type'],
@@ -104,7 +101,7 @@ class DocumentRecognitionService
     }
 
     /**
-     * Проверяет статус задачи и отправляет webhook при завершении
+     * Проверяет статус задачи
      */
     public function checkTaskStatus(DocumentRecognitionTask $task): void
     {
@@ -114,8 +111,6 @@ class DocumentRecognitionService
             $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
 
             $this->analyticsService->createAnalyticsRecord($task, 408);
-
-            $this->sendNotification($task, ['error' => 'Max attempts exceeded']);
 
             return;
         }
@@ -130,13 +125,14 @@ class DocumentRecognitionService
             Log::info('checkTaskStatus: not_ready', ['attempts_count' => $task->attempts_count, 'canRetry' => $task->canRetry()]);
 
             if ($task->canRetry()) {
-                $this->scheduleStatusCheck($task);
+                // Планируем повторную проверку только если это не прямой запрос статуса
+                if ($task->attempts_count > 0) {
+                    $this->scheduleStatusCheck($task);
+                }
             } else {
                 $task->update(['status' => DocumentRecognitionTask::STATUS_FAILED]);
 
                 $this->analyticsService->createAnalyticsRecord($task, 408);
-
-                $this->sendNotification($task, ['error' => 'Recognition timeout after max attempts']);
             }
             return;
         }
@@ -153,8 +149,6 @@ class DocumentRecognitionService
             ]);
 
             $this->analyticsService->createAnalyticsRecord($task, 200);
-
-            $this->sendNotification($task, $processedData);
         } else {
             $task->update([
                 'status' => DocumentRecognitionTask::STATUS_FAILED,
@@ -162,37 +156,6 @@ class DocumentRecognitionService
             ]);
 
             $this->analyticsService->createAnalyticsRecord($task, 500);
-
-            $this->sendNotification($task, ['error' => $apiResponse['error']]);
-        }
-    }
-
-    /**
-     * Отправляет уведомление: webhook на callback_url или сообщение в Kafka
-     */
-    private function sendNotification(DocumentRecognitionTask $task, array $data): void
-    {
-        $payload = [
-            'task_id' => $task->id,
-            'external_task_id' => $task->external_task_id,
-            'status' => $task->status,
-            'metadata' => $task->metadata,
-            'result' => $data,
-            'timestamp' => now()->toISOString()
-        ];
-
-        if ($task->callback_url !== null) {
-            try {
-                $response = Http::timeout(10)
-                    ->post($task->callback_url, $payload);
-
-                Log::info('Webhook sent successfully', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'response_status' => $response->status()]);
-
-            } catch (\Exception $e) {
-                Log::error('Failed to send webhook', ['task_id' => $task->id, 'callback_url' => $task->callback_url, 'error' => $e->getMessage()]);
-            }
-        } else {
-            $this->kafkaService->sendRecognitionResult($task->toArray(), $data);
         }
     }
 
@@ -206,4 +169,6 @@ class DocumentRecognitionService
 
         Log::info('Status check scheduled', ['task_id' => $task->id, 'scheduled_for' => now()->addSeconds(30)]);
     }
+
+
 }

@@ -24,7 +24,6 @@ Route::get('/user', function (Request $request) {
 Route::prefix('v1')->group(function () {
     Route::post('/recognize', [DocumentRecognitionController::class, 'recognize']);
     Route::get('/status/{task_id}', [DocumentRecognitionController::class, 'status']);
-    Route::get('/status/{task_id}', [DocumentRecognitionController::class, 'status']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'getAnalytics']);

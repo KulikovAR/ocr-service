@@ -20,7 +20,6 @@ class DocumentRecognitionTask extends Model
     protected $fillable = [
         'external_task_id',
         'status',
-        'callback_url',
         'metadata',
         'result_data',
         'document_type',

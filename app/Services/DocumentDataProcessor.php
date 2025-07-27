@@ -62,22 +62,21 @@ class DocumentDataProcessor
     private function extractPassportData(array $result): array
     {
         return [
-            'series' => $result['Series'] ?? null,
-            'number' => $result['Number'] ?? null,
             'issuedBy' => $result['IssuedBy'] ?? null,
             'issueDate' => $result['IssueDate'] ?? null,
-            'departmentCode' => $result['IssueId'] ?? null,
+            'issueId' => $result['IssueId'] ?? null,
+            'series' => $result['Series'] ?? null,
+            'number' => $result['Number'] ?? null,
+            'gender' => $result['Gender'] ?? null,
             'lastName' => $result['LastName'] ?? null,
             'firstName' => $result['FirstName'] ?? null,
             'middleName' => $result['MiddleName'] ?? null,
             'birthDate' => $result['BirthDate'] ?? null,
             'birthPlace' => $result['BirthPlace'] ?? null,
-            'gender' => $result['Gender'] ?? null,
-            'registrationAddress' => $result['Address'] ?? null,
-            'mrz1' => $result['MRZ1'] ?? null,
-            'mrz2' => $result['MRZ2'] ?? null,
             'hasPhoto' => $result['HasPhoto'] ?? null,
             'hasOwnerSignature' => $result['HasOwnerSignature'] ?? null,
+            'MRZ1' => $result['MRZ1'] ?? null,
+            'MRZ2' => $result['MRZ2'] ?? null,
         ];
     }
 

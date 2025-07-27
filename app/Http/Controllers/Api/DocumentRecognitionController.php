@@ -32,7 +32,6 @@ class DocumentRecognitionController extends Controller
      *             @OA\Property(property="document_id", type="string", example="doc_123", description="Уникальный идентификатор документа"),
      *             @OA\Property(property="document_type", type="string", enum={"PASSPORT", "PASSPORT_REG", "DLIC", "SNILS", "STS"}, example="PASSPORT", description="Тип документа"),
      *             @OA\Property(property="images", type="array", @OA\Items(type="string", format="base64"), example={"/9j/4AAQSkZJRgABAQEASABIAAD/4gIYSUNDX1BST0ZJTEUAAQEAAAIIAAAAAAQwAABtbnRyUkdCIFhZWiAH"}, description="Массив изображений в формате base64"),
-     *             @OA\Property(property="callback_url", type="string", format="url", example="https://example.com/webhook", description="URL для отправки результата распознавания"),
      *             @OA\Property(property="metadata", type="object", example={"user_id": 123, "session_id": "abc123"}, description="Дополнительные метаданные")
      *         )
      *     ),
@@ -105,16 +104,28 @@ class DocumentRecognitionController extends Controller
      *         response=200,
      *         description="Статус задачи получен",
      *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="task_id", type="integer", example=1),
-     *             @OA\Property(property="document_id", type="integer", example=1),
-     *             @OA\Property(property="external_task_id", type="string", example="s-12345"),
+     *             @OA\Property(property="document_id", type="string", example="doc_123"),
      *             @OA\Property(property="status", type="string", enum={"pending", "processing", "completed", "failed"}, example="completed"),
      *             @OA\Property(property="document_type", type="string", example="PASSPORT"),
-     *             @OA\Property(property="metadata", type="object", example={"user_id": 123}),
-     *             @OA\Property(property="data", type="object", example={"Series": "1234", "Number": "567890"}, description="Распознанные данные (только для completed)"),
-     *             @OA\Property(property="confidences", type="object", example={"Series": 0.95}, description="Уверенность в распознавании (только для completed)"),
-     *             @OA\Property(property="verifications", type="object", example={"Series": {"valid": true}}, description="Результаты верификации (только для completed)"),
+     *             @OA\Property(property="data", type="object", example={
+     *                 "issuedBy": "string",
+     *                 "issueDate": "string",
+     *                 "issueId": "string",
+     *                 "series": "string",
+     *                 "number": "string",
+     *                 "gender": "string",
+     *                 "lastName": "string",
+     *                 "firstName": "string",
+     *                 "middleName": "string",
+     *                 "birthDate": "string",
+     *                 "birthPlace": "string",
+     *                 "hasPhoto": true,
+     *                 "hasOwnerSignature": true,
+     *                 "MRZ1": "string",
+     *                 "MRZ2": "string"
+     *             }, description="Распознанные данные (только для completed)"),
+     *             @OA\Property(property="confidences", type="object", example={"series": 0.95}, description="Уверенность в распознавании (только для completed)"),
+     *             @OA\Property(property="verifications", type="object", example={"series": {"valid": true}}, description="Результаты верификации (только для completed)"),
      *             @OA\Property(property="error", type="string", example="Document processing failed", description="Описание ошибки (только для failed)")
      *         )
      *     ),
@@ -144,14 +155,17 @@ class DocumentRecognitionController extends Controller
             ], 404);
         }
 
+        // Если задача еще не завершена, проверяем статус в beorg.ru
+        if ($task->status === DocumentRecognitionTask::STATUS_PENDING || $task->status === DocumentRecognitionTask::STATUS_PROCESSING) {
+            $this->recognitionService->checkTaskStatus($task);
+            // Обновляем задачу после проверки
+            $task->refresh();
+        }
+
         $response = [
-            'success' => true,
-            'task_id' => $task->id,
-            'document_id' => $task->id,
-            'external_task_id' => $task->external_task_id,
+            'document_id' => $task->metadata['document_id'] ?? $task->id,
             'status' => $task->status,
             'document_type' => $task->document_type,
-            'metadata' => $task->metadata,
         ];
 
         if ($task->status === DocumentRecognitionTask::STATUS_COMPLETED) {
@@ -164,4 +178,6 @@ class DocumentRecognitionController extends Controller
 
         return response()->json($response);
     }
+
+
 }

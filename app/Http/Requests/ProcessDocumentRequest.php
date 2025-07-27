@@ -16,7 +16,6 @@ class ProcessDocumentRequest extends FormRequest
             'document_type' => 'required|string|in:PASSPORT,PASSPORT_REG,DLIC,SNILS,STS',
             'images' => 'required|array|min:1|max:10',
             'images.*' => 'required|string|min:10240',
-            'callback_url' => 'nullable|url|max:500',
             'metadata' => 'nullable|array',
             'metadata.*' => 'nullable|string|max:1000',
         ];
@@ -41,8 +40,7 @@ class ProcessDocumentRequest extends FormRequest
             'images.*.required' => 'Each image is required',
             'images.*.string' => 'Each image must be a base64 string',
             'images.*.min' => 'Each image must be at least 10KB in size',
-            'callback_url.url' => 'Callback URL must be a valid URL',
-            'callback_url.max' => 'Callback URL cannot exceed 500 characters',
+
             'metadata.array' => 'Metadata must be an array',
             'metadata.*.string' => 'Metadata values must be strings',
             'metadata.*.max' => 'Metadata values cannot exceed 1000 characters',
@@ -58,7 +56,6 @@ class ProcessDocumentRequest extends FormRequest
             'document_id' => 'идентификатор документа',
             'document_type' => 'тип документа',
             'images' => 'изображения',
-            'callback_url' => 'callback URL',
         ];
     }
 
