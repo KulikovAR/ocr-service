@@ -11,7 +11,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('recognition_analytics', function (Blueprint $table) {
-            $table->timestamp('request_date');
+            $table->timestamp('request_date')->nullable();
         });
     }
 
