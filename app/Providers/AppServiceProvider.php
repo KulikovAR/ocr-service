@@ -13,6 +13,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+
         $this->app->singleton(ExternalApiClient::class, function ($app) {
             return new ExternalApiClient();
         });
@@ -23,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (config('app.env') === 'production') {
+            \URL::forceScheme('https');
+        }
+
         Vite::prefetch(concurrency: 3);
     }
 }
