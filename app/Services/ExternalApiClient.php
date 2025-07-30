@@ -22,6 +22,14 @@ class ExternalApiClient
 
     public function addDocument(array $data): array
     {
+        $process_info = [];
+
+        foreach ($data['images'] as $image) {
+            $process_info[] = [
+                'type' => $data['document_type']
+            ];
+        }
+
         try {
             $payload = [
                 'token' => $this->token,
@@ -33,11 +41,7 @@ class ExternalApiClient
                 'recognized_data' => $data['recognized_data'] ?? [],
                 'upload_place' => $data['upload_place'] ?? 0,
                 'acc_pack_id' => $data['acc_pack_id'] ?? 0,
-                'process_info' => [
-                    [
-                        'type' => $data['document_type'],
-                    ]
-                ]
+                'process_info' => $process_info,
             ];
 
             Log::info('Sending document to external API', ['document_type' => $data['document_type'], 'images_count' => count($data['images'] ?? []), 'has_scan' => !empty($data['scan'])]);
@@ -89,8 +93,8 @@ class ExternalApiClient
             Log::info('Checking recognition status', ['external_task_id' => $externalTaskId]);
 
             $response = Http::withHeaders([
-                    'Content-Type' => 'application/json',
-                ])
+                'Content-Type' => 'application/json',
+            ])
                 ->get($this->baseUrl . '/api/document/result/' . $externalTaskId, [
                     'token' => $this->token,
                     'machine_uid' => $this->machineUid,
