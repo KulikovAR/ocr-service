@@ -75,6 +75,7 @@ class DocumentDataProcessor
             'birthPlace' => $result['BirthPlace'] ?? null,
             'hasPhoto' => $result['HasPhoto'] ?? null,
             'hasOwnerSignature' => $result['HasOwnerSignature'] ?? null,
+            'address' => $result['Address'] ?? null,
             'MRZ1' => $result['MRZ1'] ?? null,
             'MRZ2' => $result['MRZ2'] ?? null,
         ];
