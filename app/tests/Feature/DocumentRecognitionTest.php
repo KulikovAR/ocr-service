@@ -308,16 +308,115 @@ class DocumentRecognitionTest extends TestCase
             ];
 
             $response = $this->postJson('/api/v1/recognize', $payload);
-            
-            // Проверяем, что нет ошибок валидации для document_type
-            if ($response->status() === 422) {
-                $errors = $response->json('errors');
-                $this->assertArrayNotHasKey('document_type', $errors, "Document type {$docType} should be valid");
-            } else {
-                // Если запрос прошел успешно, проверяем что это не ошибка валидации
-                $this->assertNotEquals(422, $response->status(), "Document type {$docType} should be valid");
-            }
+
+            $response->assertStatus(201);
         }
+    }
+
+    public function test_driver_license_processing_includes_end_date(): void
+    {
+        $task = DocumentRecognitionTask::create([
+            'external_task_id' => 's-12345',
+            'status' => 'completed',
+            'document_type' => 'DLIC',
+            'metadata' => ['document_id' => 'doc_123'],
+            'result_data' => [
+                'extracted_data' => [
+                    'series' => '1234',
+                    'number' => '567890',
+                    'issuedBy' => 'ГИБДД',
+                    'issueDate' => '2020-01-01',
+                    'endDate' => '2030-01-01',
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван',
+                    'middleName' => 'Иванович',
+                    'birthDate' => '1990-01-01',
+                    'birthPlace' => 'Москва',
+                    'gender' => 'M',
+                    'categories' => ['B', 'C'],
+                    'photo' => 'base64_photo_data',
+                    'mrz1' => 'MRZ1_DATA',
+                    'mrz2' => 'MRZ2_DATA',
+                    'mrz3' => 'MRZ3_DATA'
+                ],
+                'confidence_score' => 0.95,
+                'metadata' => [
+                    'verifications' => [
+                        'series' => ['valid' => true, 'message' => 'Valid']
+                    ]
+                ]
+            ]
+        ]);
+
+        $response = $this->getJson("/api/v1/status/{$task->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'document_id' => 'doc_123',
+                'status' => 'completed',
+                'document_type' => 'DLIC',
+                'data' => [
+                    'series' => '1234',
+                    'number' => '567890',
+                    'issuedBy' => 'ГИБДД',
+                    'issueDate' => '2020-01-01',
+                    'endDate' => '2030-01-01',
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван',
+                    'middleName' => 'Иванович',
+                    'birthDate' => '1990-01-01',
+                    'birthPlace' => 'Москва',
+                    'gender' => 'M',
+                    'categories' => ['B', 'C'],
+                    'photo' => 'base64_photo_data',
+                    'mrz1' => 'MRZ1_DATA',
+                    'mrz2' => 'MRZ2_DATA',
+                    'mrz3' => 'MRZ3_DATA'
+                ]
+            ]);
+    }
+
+    public function test_recognition_task_schedules_status_check_with_delay(): void
+    {
+        $this->mock(ExternalApiClient::class, function ($mock) {
+            $mock->shouldReceive('addDocument')
+                ->once()
+                ->andReturn([
+                    'success' => true,
+                    'external_task_id' => 's-12345'
+                ]);
+        });
+
+        $this->mock(AnalyticsService::class, function ($mock) {
+            $mock->shouldReceive('createErrorRecord')->never();
+        });
+
+        $this->mock(PusherNotificationService::class, function ($mock) {
+            $mock->shouldReceive('sendRecognitionCompletedNotification')->never();
+            $mock->shouldReceive('sendRecognitionFailedNotification')->never();
+        });
+
+        $payload = [
+            'document_id' => 'doc_123',
+            'document_type' => 'PASSPORT',
+            'images' => [$this->validBase64Image]
+        ];
+
+        $response = $this->postJson('/api/v1/recognize', $payload);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'task_id' => 1,
+                'external_task_id' => 's-12345'
+            ]);
+
+        // Проверяем, что задача создана с правильным статусом
+        $task = DocumentRecognitionTask::find(1);
+        $this->assertNotNull($task);
+        $this->assertEquals('processing', $task->status);
+        $this->assertEquals('s-12345', $task->external_task_id);
+        $this->assertEquals('PASSPORT', $task->document_type);
     }
 
     public function test_sends_pusher_notification_on_completion(): void

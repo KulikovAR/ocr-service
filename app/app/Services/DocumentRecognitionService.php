@@ -57,7 +57,16 @@ class DocumentRecognitionService
                     'status' => DocumentRecognitionTask::STATUS_PROCESSING,
                 ]);
 
+                // Планируем первую проверку статуса через 30 секунд для обработки файлов
                 $this->scheduleStatusCheck($task);
+
+                Log::info('Document recognition task created successfully', [
+                    'task_id' => $task->id,
+                    'external_task_id' => $apiResponse['external_task_id'],
+                    'document_type' => $data['document_type'],
+                    'files_count' => count($data['images'] ?? []),
+                    'first_status_check_scheduled_for' => now()->addSeconds(30)
+                ]);
 
                 return [
                     'success' => true,
@@ -192,13 +201,21 @@ class DocumentRecognitionService
 
     /**
      * Планирует проверку статуса через 30 секунд
+     * Первая проверка дает время на обработку файлов в beorg.ru
      */
     protected function scheduleStatusCheck(DocumentRecognitionTask $task): void
     {
+        $scheduledTime = now()->addSeconds(30);
+        
         CheckRecognitionStatusJob::dispatch($task)
-            ->delay(now()->addSeconds(30));
+            ->delay($scheduledTime);
 
-        Log::info('Status check scheduled', ['task_id' => $task->id, 'scheduled_for' => now()->addSeconds(30)]);
+        Log::info('Status check scheduled', [
+            'task_id' => $task->id, 
+            'external_task_id' => $task->external_task_id,
+            'scheduled_for' => $scheduledTime,
+            'attempts_count' => $task->attempts_count
+        ]);
     }
 
 

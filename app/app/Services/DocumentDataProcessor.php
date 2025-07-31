@@ -88,7 +88,7 @@ class DocumentDataProcessor
             'number' => $result['Number'] ?? null,
             'issuedBy' => $result['IssuedBy'] ?? null,
             'issueDate' => $result['IssueDate'] ?? null,
-            'expiryDate' => $result['ExpiryDate'] ?? null,
+            'endDate' => $result['ExpiryDate'] ?? null,
             'lastName' => $result['LastName'] ?? null,
             'firstName' => $result['FirstName'] ?? null,
             'middleName' => $result['MiddleName'] ?? null,
